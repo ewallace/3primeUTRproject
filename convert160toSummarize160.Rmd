@@ -1,0 +1,50 @@
+make summarized table
+```{r}
+make_summarized_table<-function(hclust_file,cluster_name){
+cluster_number<-as.tibble(hclust_file[,cluster_name])
+cluster_number$rowname<-rownames(hclust_file)
+expression_table<-as.tibble(rownames_to_column(as.data.frame(init_table_160.mat)))
+expression_table_with_cluster_number<-left_join(cluster_number,expression_table, by="rowname")
+summarized_expression_table<-expression_table_with_cluster_number%>%select(-rowname) %>% group_by(value) %>% summarise_all(funs(mean(., na.rm = TRUE)))
+return(summarized_expression_table)
+}
+```
+
+
+```{r}
+dim(init_table_142.mat)
+```
+
+```{r}
+summarized_expression_table_WardD2<-make_summarized_table(WardD2.cluster_table,"cluster_19")
+summarized_expression_table_WPGMA<-make_summarized_table(WPGMA.cluster_table,"cluster_10")
+summarized_expression_table_UPGMA<-make_summarized_table(UPGMA.cluster_table,"cluster_2")
+```
+
+
+```{r}
+make_gene_cluster_table<-function(hclust_file,cluster_name){
+cluster_number<-as.tibble(hclust_file[,cluster_name])
+cluster_number$rowname<-rownames(hclust_file)
+return(cluster_number)
+}
+```
+
+```{r}
+gene_cluster_table_WardD2<-make_gene_cluster_table(WardD2.cluster_table,"cluster_19")
+```
+
+```{r}
+gene_cluster_table_WardD2
+```
+
+```{r}
+gene_cluster_table_WardD2<-make_gene_cluster_table(WardD2.cluster_table,"cluster_19")
+write.table(gene_cluster_table_WardD2, file=paste0(deparse(substitute(gene_cluster_table_WardD2)),".txt"), row.names=F, quote=FALSE,sep="\t")
+gene_cluster_table_WPGMA<-make_gene_cluster_table(WPGMA.cluster_table,"cluster_10")
+write.table(gene_cluster_table_WPGMA, file=paste0(deparse(substitute(gene_cluster_table_WPGMA)),".txt"), row.names=F, quote=FALSE,sep="\t")
+gene_cluster_table_UPGMA<-make_gene_cluster_table(UPGMA.cluster_table,"cluster_2")
+write.table(gene_cluster_table_UPGMA, file=paste0(deparse(substitute(gene_cluster_table_UPGMA)),".txt"), row.names=F, quote=FALSE,sep="\t")
+```
+
+
