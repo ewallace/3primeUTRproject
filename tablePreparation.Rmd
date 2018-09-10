@@ -1,0 +1,428 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    error: no
+    message: no
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+    warning: no
+  pdf_document:
+    toc: yes
+    toc_depth: '4'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache=TRUE)
+```
+
+```{r}
+/homes/pkncsk/R/x86_64-pc-linux-gnu-library/
+```
+
+```{r}
+.libPaths()
+```
+
+#COMPLETE MAP OF THE PROJECT
+
+##REORGANISE PREVIOUS PUBLICATION DATASET 
+
+```{r message=FALSE, warning=FALSE}
+source("https://bioconductor.org/biocLite.R")
+biocLite("Biostrings")
+```
+
+```{r}
+install.packages("tidyverse")
+```
+
+Library call
+```{r}
+library(tidyverse)
+```
+
+```{r}
+library(Biostrings)
+```
+
+###Obtain dataset
+import .txt file from the gasch dataset page #(http://genome-www.stanford.edu/yeast_stress/data/rawdata/complete_dataset.txt)
+```{r}
+gaschdata <- read_tsv("http://genome-www.stanford.edu/yeast_stress/data/rawdata/complete_dataset.txt")
+```
+
+###Cleaning
+
+Create temporary table
+```{r}
+gaschdata.tmp<-gaschdata
+#replace unknow genename with NA
+#use regex syntax 
+#\\b=border of words
+# {12,14} 12 and 14 white space 
+gaschdata.tmp$NAME<-sub("\\b {12,14}\\b", "   NA       ",gaschdata.tmp$NAME)
+#Split NAME column to get gene symbol 
+#separate classifies - as a separator, regex is used to avoid mis-separation
+gaschdata.tmp<-separate(gaschdata.tmp, col="NAME", into=c("UID", "V2"),sep=" {1,3}", extra="merge")
+#separate genesymbol from other data
+gaschdata.tmp<-separate(gaschdata.tmp, col="V2", into=c("SYMBOL", "V3"), extra="merge")
+
+#separate sid from gene descriptions
+#-8 means separate at position 8 from the back of string
+gaschdata_sep<-separate(gaschdata.tmp, col="V3",into=c("DESCRIPTION","SID"),sep=-8)
+#extract column names
+gaschdata_sep.col<-colnames(gaschdata_sep)
+#simplify column names
+new_column_name<-c("hs_05_rep1", "hs_10_rep1", "hs_15_rep1", "hs_20_rep1", "hs_30_rep1", "hs_40_rep1", "hs_60_rep1", "hs_80_rep1", 
+"hs_00_rep2_1", "hs_00_rep2_2", "hs_00_rep2_3", "hs_05_rep2", "hs_15_rep2", "hs_30_rep2", "hs_60_rep2", 
+"37t25_S_15", "37t25_S_30", "37t25_S_45", "37t25_S_60", "37t25_S_90", "hs_17t37", "hs_21t37", "hs_25t37", "hs_29t37", "hs_33t37", 
+"29t33_05", "29t33_15", "29t33_30", "33v30_90",
+"29_sorb_33_sorb_05", "29_sorb_33_sorb_15", "29_sorb_33_sorb_30", "29_sorb_33_NOsorb_05", "29_sorb_33_NOsorb_15", "29_sorb_33_NOsorb_30",
+"const_h2o2_010", "const_h2o2_020", "const_h2o2_030", "const_h2o2_040", "const_h2o2_050", "const_h2o2_060", "const_h2o2_080", "const_h2o2_100","const_h2o2_120","const_h2o2_160",
+"mena_010","mena_020","mena_030","mena_040","mena_050","mena_080","mena_105","mena_120","mena_160",
+"ddt_005_rep1","ddt_015_rep1","ddt_030_rep1","ddt_045_rep1","ddt_060_rep1","ddt_090_rep1","ddt_120_rep1","ddt_180_rep1",
+"ddt_000_rep2","ddt_015_rep2","ddt_030_rep2","ddt_060_rep2","ddt_120_rep2","ddt_240_rep2","ddt_480_rep2",
+"diam_05","diam_10","diam_20","diam_30","diam_40","diam_50","diam_60","diam_90",
+"sorb_005","sorb_015","sorb_030","sorb_045","sorb_060","sorb_090","sorb_120",
+"hypo_05","hypo_15","hypo_30","hypo_45","hypo_60",
+"steady_sorb",
+"aa_strav_030","aa_strav_1h","aa_strav_2h","aa_strav_4h","aa_strav_6h",
+"n_deplet_30","n_deplet_1h","n_deplet_2h","n_deplet_4h","n_deplet_8h","n_deplet_12h","n_deplet_1d","n_deplet_2d","n_deplet_3d","n_deplet_5d",
+"diaux_00.0h","diaux_09.5h","diaux_11.5h","diaux_13.5h","diaux_15.5h","diaux_18.5h","diaux_20.5h",
+"ypd_2h_rep2","ypd_4h_rep2","ypd_6h_rep2","ypd_8h_rep2","ypd_10h_rep2","ypd_12h_rep2","ypd_1d_rep2","ypd_2d_rep2","ypd_3d_rep2","ypd_5d_rep2",
+"ypd_2h_rep1","ypd_4h_rep1","ypd_8h_rep1","ypd_12h_rep1","ypd_1d_rep1","ypd_2d_rep1","ypd_3d_rep1","ypd_5d_rep1","ypd_7d_rep1","ypd_13d_rep1","ypd_22d_rep1","ypd_28d_rep1",
+"dby7286_37c","dby_msn2msn4_37c","dby_msn2msn4(real)_37c","dby_yap1_37c","dby_yap1_37c_rep",
+"dby7286_0.3h2o2","dby_msn2msn4_0.32h2o2","dby_msn2msn4(real)_0.32h2o2","dby_yap1_0.3h2o2","dby_yap1_0.32h2o2",
+"msn2_over","msn4_over","YAP1_over",
+"yp_eth_rep1","yp_gal_rep1","yp_glu_rep1","yp_man_rep1","yp_raf_rep1","yp_suc_rep1",
+"yp_eth_rep2","yp_fru_rep2","yp_gal_rep2","yp_glu_rep2","yp_man_rep2","yp_raf_rep2","yp_suc_rep2",
+"17c_growth","21c_growth","25c_growth","29c_growth","37c_growth",
+"15c_steady","17c_steady","21c_steady","25c_steady","29c_steady","33c_steady","36c_steady","36c_steady_rep")
+#replace column name
+colnames(gaschdata_sep)[6:178]<-new_column_name
+```
+
+###Create table for clustering
+
+160 non-mutant condition
+```{r}
+init_table_160<-gaschdata_sep[,c(2,6:139,153:178)]
+as.matrix(init_table_160[,-1])->init_table_160.mat
+init_table_160$UID->rownames(init_table_160.mat)
+```
+
+142 condtions
+```{r}
+init_table_142.mat<-init_table_160.mat[,-c(2,4,6,8:11,55,58,60,62,63,131:134,138,145)]
+```
+
+94 condtions
+Extract displayed column
+```{r}
+#heatshocktimeseries
+init_table_94.mat<-as.matrix(init_table_160.mat[,c(12:15)]-as.numeric(rowSums(init_table_160.mat[,c(9:11)],na.rm=TRUE)/3))
+#heatshock temp series
+init_table_94.mat<-as.matrix(cbind(init_table_94.mat,init_table_160.mat[,c(21:25)]))
+#h2o2 and menadione time series
+init_table_94.mat<-as.matrix(cbind(init_table_94.mat,init_table_160.mat[,c(36:54)]))
+#ddt time series
+init_table_94.mat<-as.matrix(cbind(init_table_94.mat,as.matrix(init_table_160.mat[,c(64:69)]-init_table_160.mat[,63])))
+#diaminde, sorbital, aa stravation, nitrogen depletion, diauxic, and ypd time series
+init_table_94.mat<-as.matrix(cbind(init_table_94.mat,init_table_160.mat[,c(70:84, 91:122)]))
+#carbo series
+init_table_94.mat<-as.matrix(cbind(init_table_94.mat,as.matrix(init_table_160.mat[,c(141,143,146,147,142)]-init_table_160.mat[,144])))
+#steady state series
+init_table_94.mat<-as.matrix(cbind(init_table_94.mat,as.matrix(init_table_160.mat[,c(153:157)]-init_table_160.mat[,158])))
+init_table_94.mat<-as.matrix(cbind(init_table_94.mat,as.matrix(rowSums(init_table_160.mat[,c(159:160)])/2-init_table_160.mat[,158])))
+colnames(init_table_94.mat)[length(colnames(init_table_94.mat))]<-"36c_steady"
+```
+
+```{r}
+colnames(init_table_160.mat)
+```
+
+
+##CLUSTERING
+
+#New! clustercheck
+```{r}
+install.packages("hybridHclust")
+```
+```{r}
+library(hybridHclust)
+```
+
+
+
+###Distance Matrix
+
+####Create distance matrix
+
+PEARSON
+```{r}
+init_table_142.pearson.dist<-as.dist(1-cor(t(init_table_142.mat), use="pairwise.complete.obs"))
+```
+
+EUCLIDEAN
+```{r}
+init_table_142.euclidean.dist<-dist(init_table_142.mat)
+```
+
+###Clustering
+
+UPGMA
+```{r}
+init_table_142.UPGMAclust<-hclust(init_table_142.pearson.dist, method="average")
+```
+
+WPGMA
+```{r}
+init_table_142.WPGMAclust<-hclust(init_table_142.pearson.dist, method="mcquitty")
+```
+
+WARD.D2
+```{r}
+init_table_142.WardD2clust<-hclust(init_table_142.euclidean.dist, method="ward.D2")
+```
+
+EisenCluster
+```{r}
+init_table_142.eisenclust<-eisenCluster(init_table_142.mat, method="correlation", verbose = TRUE)
+```
+
+
+####Create cluster table
+
+Define function
+```{r}
+assign_cluster<-function(hclust_object, maximum_cluster){
+  for (i in 1:maximum_cluster){
+  if(i==1){
+    clustered_1<-cutree(hclust_object, k=i)
+    cluster_table<-data.frame(cluster_1=as.factor(clustered_1),row.names=rownames(init_table_94.mat))
+  }else{
+    col_name<-paste("cluster",i,sep="_")  
+    clustered.temp<-cutree(hclust_object, k=i)
+    cluster_table$clustered.temp<-as.factor(clustered.temp)
+    names(cluster_table)[names(cluster_table) == 'clustered.temp']<-col_name 
+  }
+  }
+  return(cluster_table)
+}
+```
+
+
+
+
+```{r}
+UPGMA.cluster_table<-assign_cluster(init_table_142.UPGMAclust,20)
+WPGMA.cluster_table<-assign_cluster(init_table_142.WPGMAclust,20)
+WardD2.cluster_table<-assign_cluster(init_table_142.WardD2clust,20)
+
+
+```
+
+```{r}
+Eisen.cluster_table<-assign_cluster(init_table_142.eisenclust,20)
+```
+
+####heatmap for comparison
+
+```{r}
+library(pheatmap)
+```
+
+Controlled parameter
+```{r}
+pallet<-c("#D7DE9F", "#7FE36F", "#DF8851", "#7BADD7", "#C34AE0", "#D49FDB", "#D6DB52", "#7CE4CD","#D49E9F", "#7C9E76", "#DC5997", "#8271D5", "#D4DCDD") 
+names(pallet)<-c("1","2","3","4","5","6","7","8","9","10","11","12","13")
+ann_col<-list(cluster_2=pallet[1:2],cluster_3=pallet[1:3],cluster_4=pallet[1:4],cluster_5=pallet[1:5],cluster_6=pallet[1:6],cluster_7=pallet[1:7],cluster_8=pallet[1:8])
+#set breaks
+colors<-colorRampPalette(c("green", "black", "red"))(16)
+break_1=c(seq(-8,-1,length.out=8),seq(-0.99,0.99,length.out=1),seq(1,8,length.out=8))
+```
+
+Plot heatmap
+```{r fig.height=15, fig.width=30}
+plot_fig1<-function(presented_matrix,hclust_object,cluster_table){
+cluster_bar<-cluster_table[,1:8]
+file_name<-paste0(deparse(substitute(hclust_object)),"_8_cluster_map.png")
+pheatmap(presented_matrix,
+         cellwidth = 1, 
+         cellheight = 0.05, 
+         fontsize_row=3, 
+         fontsize_col=3,
+         na_col = "black",
+         color = colors,
+         breaks=break_1,
+         #filename=file_name,
+         border_color = "black",
+         cluster_cols=FALSE,
+         cluster_rows=hclust_object,
+         show_rownames = F,
+         show_colnames = F,
+         #annotation_col= gasch_info,
+         annotation_row=cluster_bar,
+         annotation_colors=ann_col
+         )  
+}
+
+```
+
+```{r}
+plot_fig1(init_table_94.mat,init_table_142.UPGMAclust,UPGMA.cluster_table)
+plot_fig1(init_table_94.mat,init_table_142.WPGMAclust,WPGMA.cluster_table)
+plot_fig1(init_table_94.mat,init_table_142.WardD2clust,WardD2.cluster_table)
+```
+
+```{r}
+## try http:// if https:// URLs are not supported
+source("https://bioconductor.org/biocLite.R")
+biocLite("GOsummaries")
+```
+```{r}
+install.packages("rlist")
+```
+
+
+###CLUSTER ANALYSIS: GO ENRICHMENT
+
+```{r}
+library(gProfileR)
+library(GOsummaries)
+library(rlist)
+```
+
+```{r}
+citation("stats")
+```
+
+```{r}
+Gprofiler_enrichment<-function(cluster_table){
+  #get column names
+  cluster_colnames<-colnames(cluster_table)
+  cluster_colnames<-grep(pattern = "cluster", cluster_colnames, value=TRUE)
+  for(i in cluster_colnames){
+    cluster_number<-unlist(strsplit(i,"_"))
+    #create subdirectory
+    mainsubdir<-paste0("./",dir_name,"/",deparse(substitute(cluster_table)))
+    if(!file.exists(mainsubdir)){
+      dir.create(mainsubdir)
+    }
+    sub_dir<-paste0("./",dir_name,"/",deparse(substitute(cluster_table)),"/cluster_",cluster_number[2])
+    dir.create(sub_dir)
+    #build containers
+    cluster.list<-ls()
+    GO.profile<-NA
+    #loop for subcluster
+    print(paste0("cluster number: ",cluster_number[2]))
+    for(j in 1:as.numeric(cluster_number[2])){
+        #GO analysis loop
+        temp.table<-cluster_table %>% rownames_to_column( var = "gene")%>%filter(UQ(as.name(i)) == j) %>% select(gene)
+        temp.vector<-unname(unlist(temp.table))
+        temp.profile<-gprofiler(temp.vector, organism = "scerevisiae")
+        write.table(temp.profile, file=paste0(sub_dir,"/cluster_",j,"_in_",cluster_number[2],"_GOp.txt"), sep="\t")
+        #GOchart loop
+        if(j==1){
+            cluster.list<-list(temp.vector)
+          }else{
+            cluster.list<-list.append(cluster.list,temp.vector)
+          }
+        }
+  GO_sum.tmp<-gosummaries(cluster.list, organism = "scerevisiae",max_p_value = 0.05)
+  plot(GO_sum.tmp, fontsize = 4, filename = paste0(sub_dir,"/cluster_",j,"_in_",cluster_number[2],"_GO_chart.png"),panel_height=1, components=1:length(GO_sum.tmp))  
+}
+}
+```
+
+```{r}
+dir_name<-paste("GO_0814")
+dir.create(dir_name)
+```
+
+```{r}
+Gprofiler_enrichment(UPGMA.cluster_table)
+Gprofiler_enrichment(WPGMA.cluster_table)
+Gprofiler_enrichment(WardD2.cluster_table)
+```
+
+```{r}
+Gprofiler_enrichment(Eisen.cluster_table)
+```
+
+
+UPGMA: 2 clusters
+WPGMA: 10 clusters
+Ward.D2: 19 clusters
+
+####Separate whole sequences files into clusters
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+library(Biostrings)
+library(tidyverse)
+```
+
+read fastaflie
+```{r}
+down500_ensmbl<-readDNAStringSet("./down500ensemblfilter.txt", "fasta")
+up500_ensmbl<-readDNAStringSet("./up500ensemblfilter.txt", "fasta")
+```
+
+define function
+```{r}
+separate_into_cluster<-function(dna_stringset_object, cluster_table){
+  seq_name<-names(dna_stringset_object)
+  seqs<-paste(dna_stringset_object)
+  seq_tab<-data.frame(seq_name,seqs)
+  #split the first column
+  seq_tab_tmp<-separate(seq_tab, col="seq_name", into=c("gene_name", "transcript_name","other_info"),sep="\\|", extra="merge")
+  #filter out SNCNAVAAB (sequence unavailable)
+  seq_tab_gene<-seq_tab_tmp[seq_tab_tmp$seqs!="SNCNAVAAB",]
+  #filter out mitchondria genes
+  seq_tab_gene<-seq_tab_gene %>% filter(!grepl("Mito",other_info)) 
+  cluster_colnames<-colnames(cluster_table)
+  for(i in cluster_colnames){
+    max_cluster<-unlist(strsplit(i,"_"))%>%extract(2)%>%as.numeric()
+    sub_dir<-paste0("./",dir_name,"/cluster_",max_cluster)
+    if(!file.exists(sub_dir)){
+      dir.create(sub_dir)
+    }
+    for(j in 1:max_cluster){
+      gene_in_cluster<-cluster_table%>% select(i)%>% rownames_to_column(var="gene")%>%filter(UQ(as.name(i))==j)
+      cluster_seq<-left_join(gene_in_cluster,seq_tab_gene,by=c("gene"="gene_name"))%>% na.omit()
+      output_tab<-cluster_seq%>%pull(seqs)%>%DNAStringSet()
+      names(output_tab)<-cluster_seq$gene
+      region_vector<-unlist(strsplit(deparse(substitute(dna_stringset_object)),"500"))%>%extract(1)
+      tab_name<-paste0(sub_dir,"/cluster_",j,"_in_",max_cluster,"_",region_vector,".fasta")
+      writeXStringSet(output_tab, tab_name, format="fasta")
+      
+    }
+    print(paste0("cluster_",max_cluster," done."))
+  }
+}
+```
+
+```{r}
+dir_name<-paste("cluster_0720_UPGMA")
+dir.create(dir_name)
+separate_into_cluster(down500_ensmbl,UPGMA.cluster_table)
+separate_into_cluster(up500_ensmbl,UPGMA.cluster_table)
+
+```
+```{r}
+dir_name<-paste("cluster_0720_WPGMA")
+dir.create(dir_name)
+separate_into_cluster(down500_ensmbl,WPGMA.cluster_table)
+separate_into_cluster(up500_ensmbl,WPGMA.cluster_table)
+
+```
+
+```{r}
+dir_name<-paste("cluster_0720_WardD2")
+dir.create(dir_name)
+separate_into_cluster(down500_ensmbl,WardD2.cluster_table)
+separate_into_cluster(up500_ensmbl,WardD2.cluster_table)
+
+```
