@@ -1,7 +1,7 @@
 ---
-title: "R Notebook"
+title: "tablePreparation"
 output:
-  html_document:
+  html_notebook:
     error: no
     message: no
     toc: yes
@@ -17,64 +17,104 @@ output:
 knitr::opts_chunk$set(cache=TRUE)
 ```
 
-```{r}
-/homes/pkncsk/R/x86_64-pc-linux-gnu-library/
-```
+This Rnotebook covers the code used for preparing the [Genomic Expression Programs in the Response of Yeast Cells to Environmental Changes](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC15070/) (Gasch et al, 2000) dataset for downstream Motifs analysis (mainly MEME suite). The preparation processes mainly involve:
 
-```{r}
-.libPaths()
-```
+* table manipulation to create source expression table
 
-#COMPLETE MAP OF THE PROJECT
+* clustering to group gene with similar pattern 
 
-##REORGANISE PREVIOUS PUBLICATION DATASET 
+* visualization of cluster by heatmap and GO-enrichment analyses to find biological meaning of the gene clusters
 
-```{r message=FALSE, warning=FALSE}
-source("https://bioconductor.org/biocLite.R")
-biocLite("Biostrings")
-```
 
+#table manipulation
+
+Initially we intended to make the clustering results comparable with results from Gasch paper, therefore we decided to reproduce Gasch clustering or at least make the results as close as possible.
+
+In the orginal paper, the authors clustered gene expression microarrya of wildtype yeast under 160 environmental stress conditions. And then present 142 of them in the article figure. To get similar results, these same data needs to be clustered first. However, the raw table deposited on the authors website contains all data (not only wildtype but also mutants) the ordering is differ from what presented in the paper
+
+**what I did:**
+
+* extract wildtype conditions
+
+* extract the condition used in original paper's clustering (160 conditions)
+
+* rearrage the table
+
+* create table for figures (142 tables)
+
+##**R packages**
+
+Tidyverse, from my experience, is very well-rounded, all-in-one package for table manipulation. It covers many aspect of table manipulation such as filtering, merging and iterative operations. So using only this one is enough to cover all the works needed for table preparation.
+
+Installation
 ```{r}
 install.packages("tidyverse")
 ```
-
 Library call
 ```{r}
 library(tidyverse)
 ```
 
-```{r}
-library(Biostrings)
-```
-
 ###Obtain dataset
-import .txt file from the gasch dataset page #(http://genome-www.stanford.edu/yeast_stress/data/rawdata/complete_dataset.txt)
+download source table in .txt format from the gasch dataset page (http://genome-www.stanford.edu/yeast_stress/data/rawdata/complete_dataset.txt)
 ```{r}
 gaschdata <- read_tsv("http://genome-www.stanford.edu/yeast_stress/data/rawdata/complete_dataset.txt")
 ```
 
-###Cleaning
+###Extract clustered conditions
 
-Create temporary table
+create temporary table to preserve the original copy, just in case we want to go back modifying the original table.
 ```{r}
 gaschdata.tmp<-gaschdata
-#replace unknow genename with NA
-#use regex syntax 
-#\\b=border of words
-# {12,14} 12 and 14 white space 
-gaschdata.tmp$NAME<-sub("\\b {12,14}\\b", "   NA       ",gaschdata.tmp$NAME)
-#Split NAME column to get gene symbol 
-#separate classifies - as a separator, regex is used to avoid mis-separation
-gaschdata.tmp<-separate(gaschdata.tmp, col="NAME", into=c("UID", "V2"),sep=" {1,3}", extra="merge")
-#separate genesymbol from other data
-gaschdata.tmp<-separate(gaschdata.tmp, col="V2", into=c("SYMBOL", "V3"), extra="merge")
+```
 
-#separate sid from gene descriptions
-#-8 means separate at position 8 from the back of string
-gaschdata_sep<-separate(gaschdata.tmp, col="V3",into=c("DESCRIPTION","SID"),sep=-8)
-#extract column names
-gaschdata_sep.col<-colnames(gaschdata_sep)
-#simplify column names
+```{r echo=FALSE}
+gaschdata.tmp[1:10,1:10]
+```
+
+Now, take a look at the NAME column:
+```{r echo=FALSE}
+gaschdata.tmp[1:10,2]
+```
+This colum contains important information such as uid, gene symbol. So we decide to divide this column into different columns.
+From NAME to UID, SYMBOL, DESCRIPTION and SID. Even thought most of the downstream processes would need only a naked table (just UID and expression profiles), these data might be merged back for the analyses later on.
+
+First, start with replacing missing genesymbol with NA using regex syntax. 
+
+Judging by the looks of NAME column alone, it may seem to be well formatted. In reality, white space character has been used, making it hard to separate by tidyverse function. So, we will replace this one first.
+
+* \\b=border of words
+* {12,14} 12 and 14 white space 
+```{r}
+gaschdata.tmp$NAME<-sub("\\b {12,14}\\b", "   NA       ",gaschdata.tmp$NAME)
+```
+Then split NAME column one by one. Note that V3 column is splitted backward by using the position of character since SID are always 8-digits.
+```{r}
+gaschdata.tmp<-separate(gaschdata.tmp, col="NAME", into=c("UID", "V2"),sep=" {1,3}", extra="merge")
+gaschdata.tmp<-separate(gaschdata.tmp, col="V2", into=c("SYMBOL", "V3"), extra="merge")
+gaschdata.tmp<-separate(gaschdata.tmp, col="V3",into=c("DESCRIPTION","SID"),sep=-8)
+```
+Save the columns into separate table for later use.
+```{r}
+original_gene_info<-gaschdata.tmp[,2:5]
+```
+```{r echo=FALSE}
+original_gene_info
+```
+
+```{r eval=FALSE, include=FALSE}
+#UID entry check
+UID_check<-tibble(UID1=gaschdata.tmp$UID, UID_from_NAME=original_gene_info$UID)
+```
+
+Next, the conditions. 
+```{r}
+colnames(gaschdata.tmp)[6:178]
+```
+The original table already provide well described column names, but we will shorten them to make them easier to work with. (Too long column names might get in the way during coding and analysis)
+
+Simplify column names and then replace.
+```{r}
 new_column_name<-c("hs_05_rep1", "hs_10_rep1", "hs_15_rep1", "hs_20_rep1", "hs_30_rep1", "hs_40_rep1", "hs_60_rep1", "hs_80_rep1", 
 "hs_00_rep2_1", "hs_00_rep2_2", "hs_00_rep2_3", "hs_05_rep2", "hs_15_rep2", "hs_30_rep2", "hs_60_rep2", 
 "37t25_S_15", "37t25_S_30", "37t25_S_45", "37t25_S_60", "37t25_S_90", "hs_17t37", "hs_21t37", "hs_25t37", "hs_29t37", "hs_33t37", 
@@ -100,26 +140,37 @@ new_column_name<-c("hs_05_rep1", "hs_10_rep1", "hs_15_rep1", "hs_20_rep1", "hs_3
 "yp_eth_rep2","yp_fru_rep2","yp_gal_rep2","yp_glu_rep2","yp_man_rep2","yp_raf_rep2","yp_suc_rep2",
 "17c_growth","21c_growth","25c_growth","29c_growth","37c_growth",
 "15c_steady","17c_steady","21c_steady","25c_steady","29c_steady","33c_steady","36c_steady","36c_steady_rep")
-#replace column name
-colnames(gaschdata_sep)[6:178]<-new_column_name
+colnames(gaschdata.tmp)[6:178]<-new_column_name
+```
+
+```{r}
+new_column_name
 ```
 
 ###Create table for clustering
 
+The original paper used only wildtype treatment for clustering. Therefore, we will select wildtype to reproduce the clustering results. 
 160 non-mutant condition
 ```{r}
-init_table_160<-gaschdata_sep[,c(2,6:139,153:178)]
+init_table_160<-gaschdata.tmp[,c(2,6:139,153:178)]
 as.matrix(init_table_160[,-1])->init_table_160.mat
 init_table_160$UID->rownames(init_table_160.mat)
 ```
+```{r}
+init_table_160
+```
+
 
 142 condtions
 ```{r}
 init_table_142.mat<-init_table_160.mat[,-c(2,4,6,8:11,55,58,60,62,63,131:134,138,145)]
 ```
+```{r}
+init_table_142.mat
+```
 
 94 condtions
-Extract displayed column
+Extract column used in the original paper key figure. In this part, we replicated the calculation method for gene expression normalisation in the Gasch paper. To put it simply, in the conditions that has control condition reported, the treated condition will be subtracted by control condtion.
 ```{r}
 #heatshocktimeseries
 init_table_94.mat<-as.matrix(init_table_160.mat[,c(12:15)]-as.numeric(rowSums(init_table_160.mat[,c(9:11)],na.rm=TRUE)/3))
@@ -140,13 +191,22 @@ colnames(init_table_94.mat)[length(colnames(init_table_94.mat))]<-"36c_steady"
 ```
 
 ```{r}
-colnames(init_table_160.mat)
+init_table_94.mat
 ```
 
+After the raw tables are prepared, they will be used for clustering. 
+
+Let's flashback a little bit. We cluster this expression microarray dataset because we want to group genes into clusters using their expresion patterns. The rationale behind this is that, 
+
+* At this state of the project, we want to find regulators which respond to environmental stresses. 
+
+* Our initial assumprion is that gene with same regulators will have the same expression pattern.
+
+* So, we have to find the expression pattern (by clustering), in order to trace back to a regulator.
 
 ##CLUSTERING
 
-#New! clustercheck
+**HybridHclust** package contains Eigen clustering in Eigen 1998 paper, to completely replicate the original result, we will also include this method.
 ```{r}
 install.packages("hybridHclust")
 ```
@@ -155,139 +215,233 @@ library(hybridHclust)
 ```
 
 
-
 ###Distance Matrix
+
+Distance matrices are a base material for heirachical clustering. The matrices contain distant values of each row pair, which the calculation method can be specified by the user.
+
+Method used in this work:
+
+* **Pearson correlation** normally used for micrroarray analysis
+* **Euclidean distance** for Ward clustering
 
 ####Create distance matrix
 
 PEARSON
 ```{r}
-init_table_142.pearson.dist<-as.dist(1-cor(t(init_table_142.mat), use="pairwise.complete.obs"))
+table_142.pearson.dist<-as.dist(1-cor(t(init_table_142.mat), use="pairwise.complete.obs"))
 ```
 
 EUCLIDEAN
 ```{r}
-init_table_142.euclidean.dist<-dist(init_table_142.mat)
+table_142.euclidean.dist<-dist(init_table_142.mat)
 ```
 
 ###Clustering
 
+There is no strict criteria on how to select clustering method. And there are many factors to be considered such as the nature of data, shape of cluster, hardware requirement, etc. But the most important thing is the results should be meaningful biologically. So, we will use several clustering methods to cluster the dataset first and then throuroughly investigate the outcomes.
+
+The outcomes from clustering using functions here are hclust ojects which stores information about the tree (dendrogram) produced by the clustering process.
+
 UPGMA
 ```{r}
-init_table_142.UPGMAclust<-hclust(init_table_142.pearson.dist, method="average")
+table_142.UPGMAclust<-hclust(table_142.pearson.dist, method="average")
 ```
 
 WPGMA
 ```{r}
-init_table_142.WPGMAclust<-hclust(init_table_142.pearson.dist, method="mcquitty")
+table_142.WPGMAclust<-hclust(table_142.pearson.dist, method="mcquitty")
 ```
 
 WARD.D2
 ```{r}
-init_table_142.WardD2clust<-hclust(init_table_142.euclidean.dist, method="ward.D2")
+table_142.WardD2clust<-hclust(table_142.euclidean.dist, method="ward.D2")
 ```
 
 EisenCluster
+
+This one is the same method as in the originalpaper. The package needs only raw table input, however, it is computationally demanding. Could take more than 6 hours to finish.
 ```{r}
-init_table_142.eisenclust<-eisenCluster(init_table_142.mat, method="correlation", verbose = TRUE)
+table_142.eisenclust<-eisenCluster(init_table_142.mat, method="correlation", verbose = TRUE)
 ```
 
-
 ####Create cluster table
+As mentioned earlier, hclust objects resulted from the previous step contain the clustered tree, but we have not gotten the actual clusters yet. The have to be chopped down into cluster by another function named cutree(). In this section, we will define the fuction that simplify cutree() and assign the cluster number to each gene (row). The output of this function is a new table containing gene names and their cluster number.
+
+When the project is in progress, we did not know how many cluster we should use for downstream processes. So, the cutree function was iterated through a set of cluster number. For this fuction, we can set the maximum number of cluster. 
 
 Define function
 ```{r}
-assign_cluster<-function(hclust_object, maximum_cluster){
-  for (i in 1:maximum_cluster){
-  if(i==1){
-    clustered_1<-cutree(hclust_object, k=i)
-    cluster_table<-data.frame(cluster_1=as.factor(clustered_1),row.names=rownames(init_table_94.mat))
-  }else{
-    col_name<-paste("cluster",i,sep="_")  
+assign_cluster<-function(hclust_object, minimum_cluster=1, maximum_cluster){
+  for (i in minimum_cluster:maximum_cluster){
+  
+    col_name<-paste("cluster",i,sep="_")
     clustered.temp<-cutree(hclust_object, k=i)
+    if(i==minimum_cluster){
+    cluster_table<-data.frame(clustered.temp=as.factor(clustered.temp),row.names=rownames(init_table_94.mat))
+  }else{
     cluster_table$clustered.temp<-as.factor(clustered.temp)
+    }
     names(cluster_table)[names(cluster_table) == 'clustered.temp']<-col_name 
-  }
   }
   return(cluster_table)
 }
 ```
 
-
-
-
 ```{r}
-UPGMA.cluster_table<-assign_cluster(init_table_142.UPGMAclust,20)
-WPGMA.cluster_table<-assign_cluster(init_table_142.WPGMAclust,20)
-WardD2.cluster_table<-assign_cluster(init_table_142.WardD2clust,20)
-
-
+UPGMA.cluster_table<-assign_cluster(table_142.UPGMAclust,1,20)
+head(UPGMA.cluster_table)
 ```
-
 ```{r}
-Eisen.cluster_table<-assign_cluster(init_table_142.eisenclust,20)
+WPGMA.cluster_table<-assign_cluster(table_142.WPGMAclust,1,20)
+head(WPGMA.cluster_table)
+```
+```{r}
+WardD2.cluster_table<-assign_cluster(table_142.WardD2clust,1,20)
+head(WardD2.cluster_table)
+```
+```{r}
+Eisen.cluster_table<-assign_cluster(table_142.eisenclust,1,20)
+head(Eisen.cluster_table)
 ```
 
 ####heatmap for comparison
 
+Flashback: We tried several clustering method because we wanted to find the suitable clustering for downstream process. In order to facilitated the comparison of tables with 6000+ rows, we use heatmap to visualise those tables. 
+
+Please note that there are several factors included in selection process such as:
+
+* clustering process -- unlike the previous publication, 'gene clusters' in this project were assigned computationally by using cutree function, not the biological knowledge. Sometimes resulted cluster might not make senses.
+
+* downstream process -- from the previous point, we tried to check if the clusters make senses biologically by using functional enrichment analyses. 
+
+One of limitations of this selection process and the whole pipeline is that fuctional enrichment analysis and motif discovery programs require adequate cluster sizes. Size is very important here.
+
+**complexheatmap** This package was coded to work in object oriented fashion, allowing complex labels and annotations.
 ```{r}
-library(pheatmap)
+source("https://bioconductor.org/biocLite.R")
+biocLite("ComplexHeatmap")
+```
+```{r}
+installed.packages("circlize")
+```
+```{r}
+library(circlize)
+
 ```
 
-Controlled parameter
 ```{r}
-pallet<-c("#D7DE9F", "#7FE36F", "#DF8851", "#7BADD7", "#C34AE0", "#D49FDB", "#D6DB52", "#7CE4CD","#D49E9F", "#7C9E76", "#DC5997", "#8271D5", "#D4DCDD") 
-names(pallet)<-c("1","2","3","4","5","6","7","8","9","10","11","12","13")
-ann_col<-list(cluster_2=pallet[1:2],cluster_3=pallet[1:3],cluster_4=pallet[1:4],cluster_5=pallet[1:5],cluster_6=pallet[1:6],cluster_7=pallet[1:7],cluster_8=pallet[1:8])
-#set breaks
-colors<-colorRampPalette(c("green", "black", "red"))(16)
-break_1=c(seq(-8,-1,length.out=8),seq(-0.99,0.99,length.out=1),seq(1,8,length.out=8))
+library(ComplexHeatmap)
 ```
 
-Plot heatmap
-```{r fig.height=15, fig.width=30}
-plot_fig1<-function(presented_matrix,hclust_object,cluster_table){
-cluster_bar<-cluster_table[,1:8]
-file_name<-paste0(deparse(substitute(hclust_object)),"_8_cluster_map.png")
-pheatmap(presented_matrix,
-         cellwidth = 1, 
-         cellheight = 0.05, 
-         fontsize_row=3, 
-         fontsize_col=3,
-         na_col = "black",
-         color = colors,
-         breaks=break_1,
-         #filename=file_name,
-         border_color = "black",
-         cluster_cols=FALSE,
-         cluster_rows=hclust_object,
-         show_rownames = F,
-         show_colnames = F,
-         #annotation_col= gasch_info,
-         annotation_row=cluster_bar,
-         annotation_colors=ann_col
-         )  
+
+```{r}
+paste0(deparse(substitute(table_142.WardD2clust))," Overview")
+```
+
+
+```{r}
+fast_heatmap<-function(presented_table,hclust_object,cluster_table){
+#fix pallet
+pallet<-c("#D7DE9F", "#7FE36F", "#DF8851", "#7BADD7", "#C34AE0", "#D49FDB", "#D6DB52", "#7CE4CD","#D49E9F", "#7C9E76", "#DC5997", "#8271D5", "#D4DCDD")  
+#column annotation
+col_anno<-data.frame(col_anno_1=colnames(presented_table),stringsAsFactors = F)
+col_anno[1:9,1]<-"heatshock"
+col_anno[10:19,1]<-"osmoticshock"
+col_anno[20:28,1]<-"menadione"
+col_anno[29:34,1]<-"ddt"
+col_anno[35:42,1]<-"diamide"
+col_anno[43:49,1]<-"sorbital"
+col_anno[50:54,1]<-"aminoacidstravation"
+col_anno[55:64,1]<-"nitrogendepletion"
+col_anno[65:71,1]<-"diauxicshift"
+col_anno[72:81,1]<-"stationaryphase"
+col_anno[82:86,1]<-"continuouscarbonsources"
+col_anno[87:92,1]<-"continuoustemperatures"
+col_anno$col_anno_1<-as.factor(col_anno$col_anno_1)
+#make ComplexHeatmap object from column annotation
+col_anno_object<-HeatmapAnnotation(col_anno, col= list(col_anno_1=
+  c(
+    "heatshock"= pallet[1],
+    "osmoticshock"= pallet[2],
+    "menadione"= pallet[3],
+    "ddt"= pallet[4],
+    "diamide"= pallet[5],
+    "sorbital"= pallet[6],
+    "aminoacidstravation"= pallet[7],
+    "nitrogendepletion"= pallet[8],
+    "diauxicshift"= pallet[9],
+    "stationaryphase"= pallet[10],
+    "continuouscarbonsources"= pallet[11],
+    "continuoustemperatures"= pallet[12]
+  )
+),
+annotation_legend_param = list(col_anno_1 = list(nrow = 3, title_position = "leftcenter")), width = unit(5, "mm")
+)
+#Annotate the row with 8th cluster to give an overview on clustering method.
+cluster_anno_8<-data.frame(cluster_anno_8=cluster_table[,8])
+row_annotated<-rowAnnotation(cluster_anno_8)
+#create complexheat mapobject
+heatmap_object_1=Heatmap(presented_table,
+        #original table
+        column_title = paste0(deparse(substitute(hclust_object))," Overview"),
+        cluster_rows = hclust_object, cluster_columns = FALSE, 
+        #insert clustering results here
+        split = 2,
+        #splitting the cluster
+        col = colorRamp2(c(-8, 0, 8), c("green", "black", "red")),
+        #legend color
+        show_row_dend = FALSE,
+        #hide dendrogram
+        heatmap_legend_param = list(title = "fold"),
+        top_annotation = col_anno_object,
+        
+        show_row_names = FALSE, show_column_names = FALSE)
+#show heatmap
+draw(heatmap_object_1+row_annotated, annotation_legend_side="bottom")
 }
+```
+
+```{r}
+fast_heatmap(init_table_94.mat,table_142.WardD2clust,WardD2.cluster_table)
+```
+
+```{r}
+fast_heatmap(init_table_94.mat,table_142.UPGMAclust,UPGMA.cluster_table)
 
 ```
 
 ```{r}
-plot_fig1(init_table_94.mat,init_table_142.UPGMAclust,UPGMA.cluster_table)
-plot_fig1(init_table_94.mat,init_table_142.WPGMAclust,WPGMA.cluster_table)
-plot_fig1(init_table_94.mat,init_table_142.WardD2clust,WardD2.cluster_table)
+fast_heatmap(init_table_94.mat,table_142.WPGMAclust,WPGMA.cluster_table)
 ```
+
+
+```{r}
+fast_heatmap(init_table_94.mat,table_142.eisenclust,Eisen.cluster_table)
+```
+
+###CLUSTER ANALYSIS: GO ENRICHMENT
+
+The previous step gives us visual overviews of clustering results, which are easy to read. We can see which method gives very small cluster and might not be suitable for the downstream pipeline, which requires cluster with adequate members. To actually determine whether those clusters have biological meaning or not, we need another tool. 
+
+The idea of this step is:
+
+* GO enrichment implies shared functional roles of genes in a cluster (=biological meaning)
+
+* In motif discovery process, a cluster too large might undermine some motif
+
+* So, we want to find a clustering method that can provide the number of cluster as many as possible (divide the table into small clusters as much as possible) while all of the cluster still have biological meaning 
+
+In this work we use GO enrichment analyses tool, *GOsummaries*, which uses the *gProfileR* to analyse input data and visualise the results in easy-to-read figure.
+
 
 ```{r}
 ## try http:// if https:// URLs are not supported
-source("https://bioconductor.org/biocLite.R")
-biocLite("GOsummaries")
+#source("https://bioconductor.org/biocLite.R")
+#biocLite("GOsummaries")
 ```
 ```{r}
-install.packages("rlist")
+#install.packages("rlist")
 ```
-
-
-###CLUSTER ANALYSIS: GO ENRICHMENT
 
 ```{r}
 library(gProfileR)
@@ -295,10 +449,9 @@ library(GOsummaries)
 library(rlist)
 ```
 
-```{r}
-citation("stats")
-```
+To find the number mentioned earlier, I created a function which reads cluster table from previous step, iterates through each cluster number, seperate gene list into clusters as specified in the table, then feeds the gene group into gProfiler and GOsummeries for analysis and visualisation.
 
+define function
 ```{r}
 Gprofiler_enrichment<-function(cluster_table){
   #get column names
@@ -320,6 +473,7 @@ Gprofiler_enrichment<-function(cluster_table){
     print(paste0("cluster number: ",cluster_number[2]))
     for(j in 1:as.numeric(cluster_number[2])){
         #GO analysis loop
+        #pull gene list from rownames of the table
         temp.table<-cluster_table %>% rownames_to_column( var = "gene")%>%filter(UQ(as.name(i)) == j) %>% select(gene)
         temp.vector<-unname(unlist(temp.table))
         temp.profile<-gprofiler(temp.vector, organism = "scerevisiae")
@@ -337,8 +491,9 @@ Gprofiler_enrichment<-function(cluster_table){
 }
 ```
 
+Create directory for storing all the file
 ```{r}
-dir_name<-paste("GO_0814")
+dir_name<-paste("GO_1025")
 dir.create(dir_name)
 ```
 
@@ -346,83 +501,108 @@ dir.create(dir_name)
 Gprofiler_enrichment(UPGMA.cluster_table)
 Gprofiler_enrichment(WPGMA.cluster_table)
 Gprofiler_enrichment(WardD2.cluster_table)
-```
-
-```{r}
 Gprofiler_enrichment(Eisen.cluster_table)
+
 ```
 
+
+Here are the highest number of cluster that pass the requirement.
 
 UPGMA: 2 clusters
+![UPGMA](GO_1025/UPGMA.cluster_table/cluster_2/cluster_2_in_2_GO_chart.png)
+
 WPGMA: 10 clusters
+![WPGMA](GO_1025/WPGMA.cluster_table/cluster_10/cluster_10_in_10_GO_chart.png)
+
 Ward.D2: 19 clusters
+![Ward](GO_1025/WardD2.cluster_table/cluster_19/cluster_19_in_19_GO_chart.png)
+
+Eisen: 3 clusters
+![Eisen](GO_1025/Eisen.cluster_table/cluster_3/cluster_3_in_3_GO_chart.png)
+
+Please note that, the Eisen clustering method, which was used in the original publication, did not worked well with the way we define cluster. This leads to the assumption that the authors of orginal paper handpicked gene clusters of interest. In contrast, this work try to cover whole genome level, therefore, we will chose WARD.D2 at 19 cluster as an example.
 
 ####Separate whole sequences files into clusters
 
-```{r message=FALSE, warning=FALSE, paged.print=FALSE}
-library(Biostrings)
-library(tidyverse)
+After we get the clustering method and the number of cluster we need, next we will create material for motif discovery. The input for motif discovery program is a set DNA/RNA/AA sequences. In this works, we will download flank-coding region sequences of yeast gene from biomart and them seperate those sequences by the gene cluster from the previous step.
+
+flank-coding FASTA (1 files) ---(function)----> flank-coding cluster1 FASTA + flank-coding cluster2 FASTA + ... 
+
+*Biostrings* reads FASTA file and store the sequences in stringset objects, which works like a table. Can be used to export FASTA file
+```{r message=FALSE, warning=FALSE}
+source("https://bioconductor.org/biocLite.R")
+biocLite("Biostrings")
+```
+*biomaRt* connects to biomart and make a query for DNA sequences
+```{r}
+biocLite("biomaRt")
 ```
 
-read fastaflie
-```{r}
-down500_ensmbl<-readDNAStringSet("./down500ensemblfilter.txt", "fasta")
-up500_ensmbl<-readDNAStringSet("./up500ensemblfilter.txt", "fasta")
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+library(Biostrings)
+library(biomaRt)
 ```
+
+Prepare DNA sequences
+
+We will use scerevisiae_gene_ensembl dataset
+```{r}
+ensembl = useMart("ensembl",dataset="scerevisiae_gene_ensembl")
+```
+
+Needed attribute:
+
+*Gene stable ID :ensembl_gene_id
+
+*Transcript ID :ensembl_transcript_id
+
+*Flank coding region :coding_gene_flank
+
+*Upstream/downstream flank :upstream_flank/downstream_flank
+
+*Gene type :biotype
+
+```{r}
+chrom_list=c("I","II","III","IV","IX","V","VI","VII","VIII","X","XI","XII","XIII","XIV","XV","XVI")
+
+#getBM() will fetch the data from BioMart, with this setup, we can get sequences of interest
+up_500<-getBM(c("coding_gene_flank", "ensembl_gene_id"), filters = c("biotype", "upstream_flank","chromosome_name"), values = list("protein_coding", 500, chrom_list), mart = ensembl, checkFilters = FALSE)
+down_500<-getBM(c("coding_gene_flank", "ensembl_gene_id"), filters = c("biotype", "downstream_flank","chromosome_name"), values = list("protein_coding", 500, chrom_list), mart = ensembl, checkFilters = FALSE)
+```
+
 
 define function
 ```{r}
-separate_into_cluster<-function(dna_stringset_object, cluster_table){
-  seq_name<-names(dna_stringset_object)
-  seqs<-paste(dna_stringset_object)
-  seq_tab<-data.frame(seq_name,seqs)
-  #split the first column
-  seq_tab_tmp<-separate(seq_tab, col="seq_name", into=c("gene_name", "transcript_name","other_info"),sep="\\|", extra="merge")
-  #filter out SNCNAVAAB (sequence unavailable)
-  seq_tab_gene<-seq_tab_tmp[seq_tab_tmp$seqs!="SNCNAVAAB",]
-  #filter out mitchondria genes
-  seq_tab_gene<-seq_tab_gene %>% filter(!grepl("Mito",other_info)) 
-  cluster_colnames<-colnames(cluster_table)
-  for(i in cluster_colnames){
-    max_cluster<-unlist(strsplit(i,"_"))%>%extract(2)%>%as.numeric()
-    sub_dir<-paste0("./",dir_name,"/cluster_",max_cluster)
-    if(!file.exists(sub_dir)){
+#This part is for creating folder to store FASTA files
+separate_into_cluster<-function(sequence_table, cluster_table, cluster_number,dir_name){
+if(!file.exists(dir_name)){
+      dir.create(dir_name)
+}
+sub_dir<-paste0("./",dir_name,"/cluster_",cluster_number)
+if(!file.exists(sub_dir)){
       dir.create(sub_dir)
-    }
-    for(j in 1:max_cluster){
-      gene_in_cluster<-cluster_table%>% select(i)%>% rownames_to_column(var="gene")%>%filter(UQ(as.name(i))==j)
-      cluster_seq<-left_join(gene_in_cluster,seq_tab_gene,by=c("gene"="gene_name"))%>% na.omit()
-      output_tab<-cluster_seq%>%pull(seqs)%>%DNAStringSet()
+}
+#loop from cluster 1 to maximum number
+for(j in 1:cluster_number){
+#create gene list by using cluster number
+        gene_in_cluster<-cluster_table%>% dplyr::select(paste0("cluster_",cluster_number))%>% rownames_to_column(var="gene")%>%filter(UQ(as.name(paste0("cluster_",cluster_number)))==j)
+#merge with genome-level sequence table      
+      cluster_seq<-left_join(gene_in_cluster,sequence_table,by=c("gene"="ensembl_gene_id"))%>% na.omit()
+#print out FASTA file      
+      output_tab<-cluster_seq%>%pull(coding_gene_flank)%>%DNAStringSet()
       names(output_tab)<-cluster_seq$gene
-      region_vector<-unlist(strsplit(deparse(substitute(dna_stringset_object)),"500"))%>%extract(1)
-      tab_name<-paste0(sub_dir,"/cluster_",j,"_in_",max_cluster,"_",region_vector,".fasta")
+      region_vector<-unlist(strsplit(deparse(substitute(sequence_table)),"_"))[1]
+      tab_name<-paste0(sub_dir,"/cluster_",j,"_in_",cluster_number,"_",region_vector,".fasta")
       writeXStringSet(output_tab, tab_name, format="fasta")
       
     }
-    print(paste0("cluster_",max_cluster," done."))
-  }
+    print(paste0("cluster_",cluster_number," done."))
 }
-```
-
-```{r}
-dir_name<-paste("cluster_0720_UPGMA")
-dir.create(dir_name)
-separate_into_cluster(down500_ensmbl,UPGMA.cluster_table)
-separate_into_cluster(up500_ensmbl,UPGMA.cluster_table)
-
-```
-```{r}
-dir_name<-paste("cluster_0720_WPGMA")
-dir.create(dir_name)
-separate_into_cluster(down500_ensmbl,WPGMA.cluster_table)
-separate_into_cluster(up500_ensmbl,WPGMA.cluster_table)
 
 ```
 
 ```{r}
-dir_name<-paste("cluster_0720_WardD2")
-dir.create(dir_name)
-separate_into_cluster(down500_ensmbl,WardD2.cluster_table)
-separate_into_cluster(up500_ensmbl,WardD2.cluster_table)
+separate_into_cluster(up_500,WardD2.cluster_table,19,"cluster_1025_Ward")
+separate_into_cluster(down_500,WardD2.cluster_table,19,"cluster_1025_Ward")
 
 ```
