@@ -44,7 +44,7 @@ In the orginal paper, the authors clustered gene expression microarrya of wildty
 
 ##**R packages**
 
-Tidyverse, from my experience, is very well-rounded, all-in-one package for table manipulation. It covers many aspect of table manipulation such as filtering, merging and iterative operations. So using only this one is enough to cover all the works needed for table preparation.
+**Tidyverse**, from my experience, is very well-rounded, all-in-one package for table manipulation. It covers many aspect of table manipulation such as filtering, merging and iterative operations. So using only this one is enough to cover all the works needed for table preparation.
 
 Installation
 ```{r}
@@ -436,11 +436,11 @@ In this work we use GO enrichment analyses tool, *GOsummaries*, which uses the *
 
 ```{r}
 ## try http:// if https:// URLs are not supported
-#source("https://bioconductor.org/biocLite.R")
-#biocLite("GOsummaries")
+source("https://bioconductor.org/biocLite.R")
+biocLite("GOsummaries")
 ```
 ```{r}
-#install.packages("rlist")
+install.packages("rlist")
 ```
 
 ```{r}

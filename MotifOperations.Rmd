@@ -17,58 +17,94 @@ output:
 knitr::opts_chunk$set(cache=TRUE)
 ```
 
+This Rnotebooks cover the later part of 3' motif finding project, it contains description about:
 
-##MOTIF FINDING
+* **motif search** by MEME 
 
-###BACKGROUND
+* **motif occurence observation** by MAST
+
+* **motif comparisons** by TOMTOM
+
+Three steps above use tools from MEME-suite, which is a basic and commonly used toolset for motif discovery operation. Shell scripts for running those tools will be described here, but they can't run properly in Rstudio. The user has to run the scripts in linux-shell.
+
+**main reasons why this toolset was chosen** 
+
+* user-friendly
+
+* simple commands, 
+
+* detailed description and example 
+
+* all-in-one toolset
+
+* was used by the original paper
+
+**Note:** Alternative motif operation tools other than MEME-suite has not been tested yet.
+
+The later part of this notebook describes post-processing pipeline which will 
+
+* **gather and rearrange MEME results** into simplified and tidy tables. 
+
+###MOTIF FINDING
+
+After we separate 500bp upstream and downstream sequences into clusterห, we then search for the motif sequences in each cluster. MEME will look for the short sequences which appear in every sequence in the cluster aka motif and report them into MEME-html/xml/txt formats. These files will be used as inputs for downstream process such as counting motif occurence in region other than the discovery cluster or comparing motif to database. 
+
+First, we will start with building background base frequency from whole genome sequences of 500bp upstream and downstream. Then feed the clustered sequence files to MEME to find the motifs.
+
+**Starting File**
+* background file: background_down.fasta/background_up.fasta 
+* clustered sequence cluster: cluster_1025_Ward (extract to the home directory)
+
+###BACKGROUND BUILDING
+This function will convert 500bp sequence set downloaded from ensmbl database to FASTA file for background frequncy calculation. (Actually it can also be used to convert any gene-sequence fetched from ensmbl to fasta)
+
+define function
 ```{r}
-create_background_from_dna_stringset_object<-function(dna_stringset_object,filepath="./"){
-  seq_name<-names(dna_stringset_object)
-  seqs<-paste(dna_stringset_object)
-  seq_tab<-data.frame(seq_name,seqs)
-  #split the first column
-  seq_tab_tmp<-separate(seq_tab, col="seq_name", into=c("gene_name", "transcript_name","other_info"),sep="\\|", extra="merge")
-  #filter out SNCNAVAAB (sequence unavailable)
-  seq_tab_gene<-seq_tab_tmp[seq_tab_tmp$seqs!="SNCNAVAAB",]
-  #filter out mitchondria genes
-  seq_tab_gene<-seq_tab_gene %>% filter(!grepl("Mito",other_info)) 
-  bg_set<-DNAStringSet(as.character(seq_tab_gene$seqs))
-names(bg_set)<-seq_tab_gene$gene_name
-  region_vector<-unlist(strsplit(deparse(substitute(dna_stringset_object)),"500"))%>%extract(1)
-  writeXStringSet(bg_set, file=paste0(filepath,"background_",region_vector,".fasta"), format="fasta")
+create_background_from_sequence_table<-function(sequence_file){
+  #print out FASTA file      
+      output_tab<-sequence_file%>%pull(coding_gene_flank)%>%DNAStringSet()
+      names(output_tab)<-sequence_file$ensembl_gene_id
+      region_vector<-unlist(strsplit(deparse(substitute(sequence_file)),"_"))[1]
+      tab_name<-paste0("background_",region_vector,".fasta")
+      writeXStringSet(output_tab, tab_name, format="fasta")
+      
 }
 ```
 
 ```{r}
-create_background_from_dna_stringset_object(down500_ensmbl,"./cluster_0720_UPGMA/")
-create_background_from_dna_stringset_object(up500_ensmbl,"./cluster_0720_UPGMA/")
-```
-
-```{r}
-create_background_from_dna_stringset_object(down500_ensmbl,"./cluster_0720_WPGMA/")
-create_background_from_dna_stringset_object(up500_ensmbl,"./cluster_0720_WPGMA/")
-```
-
-```{r}
-create_background_from_dna_stringset_object(down500_ensmbl,"./cluster_0720_WardD2/")
-create_background_from_dna_stringset_object(up500_ensmbl,"./cluster_0720_WardD2/")
+create_background_from_sequence_table(down_500)
+create_background_from_sequence_table(up_500)
 ```
 
 ####Background model
 background model calculation
+
+This step was done by using MEME suite command fasta-get-markov to create background model. -m argument control markov model order. These are shell command so they need to be typed outside Rstudio. 
 ```{bash eval=FALSE}
 fasta-get-markov -m 1 < background_down.fasta > bg_down-model-1
 fasta-get-markov -m 1 < background_up.fasta > bg_up-model-1
 
 ```
 
-#Background_meme
+#Background_motif script
+This is the script for motif discovery for background file. The resuts are used to compare the effect of inputs (whole genome [background] vs clusters). The speculation is that very common motifs could be found from the whole genome set, any noise should have no effect to them.
+
+**background_meme.sh**
+to run: bash background_meme.sh
 ```{bash}
 #!/bin/sh
+#set working dir as the current dir
 home_dir=$(pwd)
 echo begin_down
 date
 mkdir background_down
+#-dna: specify data in fasta file
+#-revcomp: consider reverse complement
+#-mod anr: Any Number of Repetitions (a motif might repeats multiple times in one sequence)
+#-evt: e-value treashold
+#-p 20: paralellise the task to speed things up
+#bfile:  background file
+#maxw, minw: maximum and minimum width
 /usr/local/meme5/bin/meme ./background_down.fasta -dna -revcomp -mod anr -oc $home_dir/background_down -nmotifs 50 -evt 0.005 -brief 1000000 -p 20 -bfile $home_dir/bg_down-model-1 -maxw 10 -minw 6
 echo begin_up
 date
@@ -572,6 +608,9 @@ temp_frame<-cbind.data.frame(source, motif_id,target, count=motif_nsite)
 
 }
 
+```
+```{r}
+extract2  
 ```
 
 ####extraction loop

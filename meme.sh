@@ -6,14 +6,14 @@ dir_list=$(ls -d cluster_18/)
 echo $dir_list
 #loop for a folder of each clustering
 for dir in $dir_list
-do 
+do
 home_dir=$(pwd)
 cd "$home_dir/$dir"
 echo current directory:
 pwd
 #loop for each cluster resulted from clustering
-for file in $home_dir/$dir/*down.fasta; 
-do 
+for file in $home_dir/$dir/*down.fasta;
+do
 echo ${file}
 echo start processing $(basename "$file") at:
 date
@@ -24,7 +24,7 @@ date
 /usr/local/meme5/bin/meme ${file} -dna -revcomp -mod anr -oc $(basename "$file" .fasta) -nmotifs 30 -evt 0.005 -brief 1000000 -p 20 -bfile $home_dir/bg_down-model-1 -maxw 10 -minw 6
 echo finish at:
 date
-done 
+done
 cd ".."
 done
 
@@ -56,4 +56,3 @@ date
 done
 cd ".."
 done
-
