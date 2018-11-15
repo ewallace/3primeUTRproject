@@ -63,6 +63,14 @@ First, we will start with building background base frequency from whole genome s
 
 This function will convert 500bp sequence set downloaded from ensmbl database to FASTA file for background frequncy calculation. (Actually it can also be used to convert any gene-sequence fetched from ensmbl to fasta)
 
+```{r}
+library(tidyverse)
+library(magrittr)
+library(Biostrings)
+```
+
+
+
 define function
 ```{r}
 create_background_from_sequence_table<-function(sequence_file){
