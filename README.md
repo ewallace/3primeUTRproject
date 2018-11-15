@@ -28,7 +28,7 @@ Part of **MotifOperations.Rmd**. Run in shell terminal outside of Rstudio.
 * **motif_table_dirty_group_added.txt** motifs are manually grouped using spreadsheet and tomtom.html  
 
 ### backups for previous results reproduction 
-(See: MotifOperations.Rmd at MOTIF TABLES COMPARISON BETWEEN PREVIOUS RUN AND THE CURRENT RUN section in MotifOperations.Rmd)
+(See: MOTIF TABLES COMPARISON BETWEEN PREVIOUS RUN AND THE CURRENT RUN section in MotifOperations.Rmd)
 * background_down_old.fasta: 
 * background_up_old.fasta: 
 
