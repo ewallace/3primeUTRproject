@@ -2,7 +2,9 @@
 echo begin
 date
 #choose directory
-dir_list=$(ls -d cluster_18/)
+folder_of_interest="cluster_1025_Ward"
+echo check working dir:
+dir_list=$(ls -d ./$folder_of_interest/*)
 echo $dir_list
 #loop for a folder of each clustering
 for dir in $dir_list
