@@ -20,15 +20,16 @@ Part of **MotifOperations.Rmd**. Run in shell terminal outside of Rstudio.
 * **tomtom.sh** A motif comparison tool. Compares input motifs to input databases.
 
 ## **Materials**
-**Sequence files** 
+### **Sequence files** 
 * **materials_for_motif_operation.tar.gz** contains clustered sequence files for starting MotifOperations.Rmd.
-### backups for previous results reproduction (See: MotifOperations.Rmd at MOTIF TABLES COMPARISON BETWEEN PREVIOUS RUN AND THE CURRENT RUN section in MotifOperations.Rmd)
+### backups for previous results reproduction 
+(See: MotifOperations.Rmd at MOTIF TABLES COMPARISON BETWEEN PREVIOUS RUN AND THE CURRENT RUN section in MotifOperations.Rmd)
 * background_down_old.fasta: 
 * background_up_old.fasta: 
-**Tables**
+### **Tables**
 * **materials_for_motif_operation.Rdata** contains required tables for starting MotifOperations.Rmd.
 
-**Motif database** for motif comparison
+### **Motif database** for motif comparison
 * GASCH_motif: motifs found from original paper (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC15070/)
 * JASPAR2018_CORE_fungi_non-redundant_pfms_meme.txt: Motifs from JASPAR (transcription factor) db
 * stab_motif: motifs related to RNA stability from https://genomebiology.biomedcentral.com/articles/10.1186/gb-2005-6-10-r86 motif source:https://webhome.weizmann.ac.il/home/tammyb/Shalgietal2005/
