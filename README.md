@@ -9,6 +9,7 @@ Main source code. They are split into two parts.
 
 * **MotifOperations.Rmd** performs MEME-discovery on clustered sequence files from the previous step, performs MAST (motif site counting) on MEME results, then compares discovered motifs to themselves and databases with TOMTOM. Then, gathers all results into motif table containing motif occurence data and gene expression.
 
+* pipe-nodetail.Rmd sourcecode with less description
 * 3primeRepo.Rproj an Rstudio project file.
 
 ## **BASH scripts**
