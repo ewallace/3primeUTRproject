@@ -1,0 +1,913 @@
+---
+title: "Pipeline-no detailed description"
+output:
+  html_notebook:
+    error: no
+    message: no
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+    warning: no
+  pdf_document:
+    toc: yes
+    toc_depth: '4'
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache=TRUE)
+```
+Installation for bioconductor package
+```{r}
+#source("https://bioconductor.org/biocLite.R")
+#biocLite("Biostrings")
+#biocLite("biomaRt")
+#biocLite("ComplexHeatmap")
+#biocLite("GOsummaries")
+```
+
+```{r}
+#install.packages("tidyverse")
+#install.packages("magrittr")
+#install.packages("hybridHclust")
+#install.packages("circlize")
+#install.packages("gProfileR")
+#install.packages("rlist")
+#install.packages("furrr")
+```
+
+
+```{r}
+library(tidyverse)
+library(magrittr)
+library(hybridHclust)
+library(Biostrings)
+library(biomaRt)
+library(circlize)
+library(ComplexHeatmap)
+library(gProfileR)
+library(GOsummaries)
+library(rlist)
+library(furrr)
+
+```
+
+Table preparation
+```{r}
+#Obtain dataset
+gaschdata <- read_tsv("http://genome-www.stanford.edu/yeast_stress/data/rawdata/complete_dataset.txt")
+gaschdata.tmp<-gaschdata
+```
+
+```{r}
+#Extract conditions which were used for clustering
+gaschdata.tmp$NAME<-sub("\\b {12,14}\\b", "   NA       ",gaschdata.tmp$NAME)
+gaschdata.tmp<-separate(gaschdata.tmp, col="NAME", into=c("UID", "V2"),sep=" {1,3}", extra="merge")
+gaschdata.tmp<-separate(gaschdata.tmp, col="V2", into=c("SYMBOL", "V3"), extra="merge")
+gaschdata.tmp<-separate(gaschdata.tmp, col="V3",into=c("DESCRIPTION","SID"),sep=-8)
+```
+
+```{r}
+#name new column
+new_column_name<-c("hs_05_rep1", "hs_10_rep1", "hs_15_rep1", "hs_20_rep1", "hs_30_rep1", "hs_40_rep1", "hs_60_rep1", "hs_80_rep1", 
+"hs_00_rep2_1", "hs_00_rep2_2", "hs_00_rep2_3", "hs_05_rep2", "hs_15_rep2", "hs_30_rep2", "hs_60_rep2", 
+"37t25_S_15", "37t25_S_30", "37t25_S_45", "37t25_S_60", "37t25_S_90", "hs_17t37", "hs_21t37", "hs_25t37", "hs_29t37", "hs_33t37", 
+"29t33_05", "29t33_15", "29t33_30", "33v30_90",
+"29_sorb_33_sorb_05", "29_sorb_33_sorb_15", "29_sorb_33_sorb_30", "29_sorb_33_NOsorb_05", "29_sorb_33_NOsorb_15", "29_sorb_33_NOsorb_30",
+"const_h2o2_010", "const_h2o2_020", "const_h2o2_030", "const_h2o2_040", "const_h2o2_050", "const_h2o2_060", "const_h2o2_080", "const_h2o2_100","const_h2o2_120","const_h2o2_160",
+"mena_010","mena_020","mena_030","mena_040","mena_050","mena_080","mena_105","mena_120","mena_160",
+"ddt_005_rep1","ddt_015_rep1","ddt_030_rep1","ddt_045_rep1","ddt_060_rep1","ddt_090_rep1","ddt_120_rep1","ddt_180_rep1",
+"ddt_000_rep2","ddt_015_rep2","ddt_030_rep2","ddt_060_rep2","ddt_120_rep2","ddt_240_rep2","ddt_480_rep2",
+"diam_05","diam_10","diam_20","diam_30","diam_40","diam_50","diam_60","diam_90",
+"sorb_005","sorb_015","sorb_030","sorb_045","sorb_060","sorb_090","sorb_120",
+"hypo_05","hypo_15","hypo_30","hypo_45","hypo_60",
+"steady_sorb",
+"aa_strav_030","aa_strav_1h","aa_strav_2h","aa_strav_4h","aa_strav_6h",
+"n_deplet_30","n_deplet_1h","n_deplet_2h","n_deplet_4h","n_deplet_8h","n_deplet_12h","n_deplet_1d","n_deplet_2d","n_deplet_3d","n_deplet_5d",
+"diaux_00.0h","diaux_09.5h","diaux_11.5h","diaux_13.5h","diaux_15.5h","diaux_18.5h","diaux_20.5h",
+"ypd_2h_rep2","ypd_4h_rep2","ypd_6h_rep2","ypd_8h_rep2","ypd_10h_rep2","ypd_12h_rep2","ypd_1d_rep2","ypd_2d_rep2","ypd_3d_rep2","ypd_5d_rep2",
+"ypd_2h_rep1","ypd_4h_rep1","ypd_8h_rep1","ypd_12h_rep1","ypd_1d_rep1","ypd_2d_rep1","ypd_3d_rep1","ypd_5d_rep1","ypd_7d_rep1","ypd_13d_rep1","ypd_22d_rep1","ypd_28d_rep1",
+"dby7286_37c","dby_msn2msn4_37c","dby_msn2msn4(real)_37c","dby_yap1_37c","dby_yap1_37c_rep",
+"dby7286_0.3h2o2","dby_msn2msn4_0.32h2o2","dby_msn2msn4(real)_0.32h2o2","dby_yap1_0.3h2o2","dby_yap1_0.32h2o2",
+"msn2_over","msn4_over","YAP1_over",
+"yp_eth_rep1","yp_gal_rep1","yp_glu_rep1","yp_man_rep1","yp_raf_rep1","yp_suc_rep1",
+"yp_eth_rep2","yp_fru_rep2","yp_gal_rep2","yp_glu_rep2","yp_man_rep2","yp_raf_rep2","yp_suc_rep2",
+"17c_growth","21c_growth","25c_growth","29c_growth","37c_growth",
+"15c_steady","17c_steady","21c_steady","25c_steady","29c_steady","33c_steady","36c_steady","36c_steady_rep")
+colnames(gaschdata.tmp)[6:178]<-new_column_name
+```
+
+```{r}
+#Rearrange table
+init_table_160<-gaschdata.tmp[,c(2,6:139,153:178)]
+as.matrix(init_table_160[,-1])->init_table_160.mat
+init_table_160$UID->rownames(init_table_160.mat)
+init_table_142.mat<-init_table_160.mat[,-c(2,4,6,8:11,55,58,60,62,63,131:134,138,145)]
+#heatshocktimeseries
+init_table_94.mat<-as.matrix(init_table_160.mat[,c(12:15)]-as.numeric(rowSums(init_table_160.mat[,c(9:11)],na.rm=TRUE)/3))
+#heatshock temp series
+init_table_94.mat<-as.matrix(cbind(init_table_94.mat,init_table_160.mat[,c(21:25)]))
+#h2o2 and menadione time series
+init_table_94.mat<-as.matrix(cbind(init_table_94.mat,init_table_160.mat[,c(36:54)]))
+#ddt time series
+init_table_94.mat<-as.matrix(cbind(init_table_94.mat,as.matrix(init_table_160.mat[,c(64:69)]-init_table_160.mat[,63])))
+#diaminde, sorbital, aa stravation, nitrogen depletion, diauxic, and ypd time series
+init_table_94.mat<-as.matrix(cbind(init_table_94.mat,init_table_160.mat[,c(70:84, 91:122)]))
+#carbo series
+init_table_94.mat<-as.matrix(cbind(init_table_94.mat,as.matrix(init_table_160.mat[,c(141,143,146,147,142)]-init_table_160.mat[,144])))
+#steady state series
+init_table_94.mat<-as.matrix(cbind(init_table_94.mat,as.matrix(init_table_160.mat[,c(153:157)]-init_table_160.mat[,158])))
+init_table_94.mat<-as.matrix(cbind(init_table_94.mat,as.matrix(rowSums(init_table_160.mat[,c(159:160)])/2-init_table_160.mat[,158])))
+colnames(init_table_94.mat)[length(colnames(init_table_94.mat))]<-"36c_steady"
+```
+Clustering
+```{r}
+#Distance Matrix
+#EUCLIDEAN
+table_142.euclidean.dist<-dist(init_table_142.mat)
+#Clustering
+table_142.WardD2clust<-hclust(table_142.euclidean.dist, method="ward.D2")
+```
+
+Cluster profile table
+```{r}
+#Define function
+assign_cluster<-function(hclust_object, minimum_cluster=1, maximum_cluster){
+  for (i in minimum_cluster:maximum_cluster){
+    
+    #prepare column name
+    col_name<-paste("cluster",i,sep="_")
+    #extract cluster & row name
+    clustered.temp<-cutree(hclust_object, k=i)
+    #Create new table with the first column
+    if(i==minimum_cluster){
+    cluster_table<-data.frame(clustered.temp=as.factor(clustered.temp),row.names=rownames(init_table_94.mat))
+  }else{
+    #extend the table 
+    cluster_table$clustered.temp<-as.factor(clustered.temp)
+  }
+    #rename new column with prepared column name
+    names(cluster_table)[names(cluster_table) == 'clustered.temp']<-col_name 
+  }
+  return(cluster_table)
+}
+```
+
+```{r}
+WardD2.cluster_table<-assign_cluster(table_142.WardD2clust,1,20)
+head(WardD2.cluster_table)
+```
+
+Draw Heatmap
+```{r}
+#define function
+fast_heatmap<-function(presented_table,hclust_object,cluster_table){
+#Prepare annotation object and parameters
+#fix pallet
+pallet<-c("#D7DE9F", "#7FE36F", "#DF8851", "#7BADD7", "#C34AE0", "#D49FDB", "#D6DB52", "#7CE4CD","#D49E9F", "#7C9E76", "#DC5997", "#8271D5", "#D4DCDD")  
+#column annotation
+col_anno<-data.frame(col_anno_1=colnames(presented_table),stringsAsFactors = F)
+col_anno[1:9,1]<-"heatshock"
+col_anno[10:19,1]<-"osmoticshock"
+col_anno[20:28,1]<-"menadione"
+col_anno[29:34,1]<-"ddt"
+col_anno[35:42,1]<-"diamide"
+col_anno[43:49,1]<-"sorbital"
+col_anno[50:54,1]<-"aminoacidstravation"
+col_anno[55:64,1]<-"nitrogendepletion"
+col_anno[65:71,1]<-"diauxicshift"
+col_anno[72:81,1]<-"stationaryphase"
+col_anno[82:86,1]<-"continuouscarbonsources"
+col_anno[87:92,1]<-"continuoustemperatures"
+col_anno$col_anno_1<-as.factor(col_anno$col_anno_1)
+#make ComplexHeatmap object from column annotation
+col_anno_object<-HeatmapAnnotation(col_anno, col= list(col_anno_1=
+  c(
+    "heatshock"= pallet[1],
+    "osmoticshock"= pallet[2],
+    "menadione"= pallet[3],
+    "ddt"= pallet[4],
+    "diamide"= pallet[5],
+    "sorbital"= pallet[6],
+    "aminoacidstravation"= pallet[7],
+    "nitrogendepletion"= pallet[8],
+    "diauxicshift"= pallet[9],
+    "stationaryphase"= pallet[10],
+    "continuouscarbonsources"= pallet[11],
+    "continuoustemperatures"= pallet[12]
+  )
+),
+annotation_legend_param = list(col_anno_1 = list(nrow = 3, title_position = "leftcenter")), width = unit(5, "mm")
+)
+
+#Annotate the row with 8th cluster to give an overview on clustering method.
+cluster_anno_8<-data.frame(cluster_anno_8=cluster_table[,8])
+row_annotated<-rowAnnotation(cluster_anno_8)
+
+#create complexheat mapobject
+heatmap_object_1=Heatmap(presented_table,
+        #original table
+        column_title = paste0(deparse(substitute(hclust_object))," Overview"),
+        cluster_rows = hclust_object, cluster_columns = FALSE, 
+        #insert clustering results here
+        split = 2,
+        #splitting the cluster
+        col = colorRamp2(c(-8, 0, 8), c("green", "black", "red")),
+        #legend color
+        show_row_dend = FALSE,
+        #hide dendrogram
+        heatmap_legend_param = list(title = "fold"),
+        top_annotation = col_anno_object,
+        
+        show_row_names = FALSE, show_column_names = FALSE)
+#show heatmap
+draw(heatmap_object_1+row_annotated, annotation_legend_side="bottom")
+}
+```
+
+```{r}
+fast_heatmap(init_table_94.mat,table_142.WPGMAclust,WPGMA.cluster_table)
+```
+
+GO enrichment
+```{r}
+#define function
+Gprofiler_enrichment<-function(cluster_table){
+  #get column names
+  cluster_colnames<-colnames(cluster_table)
+  cluster_colnames<-grep(pattern = "cluster", cluster_colnames, value=TRUE)
+  for(i in cluster_colnames){
+    cluster_number<-unlist(strsplit(i,"_"))
+    #create subdirectory
+    mainsubdir<-paste0("./",dir_name,"/",deparse(substitute(cluster_table)))
+    if(!file.exists(mainsubdir)){
+      dir.create(mainsubdir)
+    }
+    sub_dir<-paste0("./",dir_name,"/",deparse(substitute(cluster_table)),"/cluster_",cluster_number[2])
+    dir.create(sub_dir)
+    #build containers
+    cluster.list<-ls()
+    GO.profile<-NA
+    #loop for subcluster
+    print(paste0("cluster number: ",cluster_number[2]))
+    for(j in 1:as.numeric(cluster_number[2])){
+        #GO analysis loop
+        #pull gene list from rownames of the table
+        temp.table<-cluster_table %>% rownames_to_column( var = "gene")%>%filter(UQ(as.name(i)) == j) %>% select(gene)
+        temp.vector<-unname(unlist(temp.table))
+        temp.profile<-gprofiler(temp.vector, organism = "scerevisiae")
+        write.table(temp.profile, file=paste0(sub_dir,"/cluster_",j,"_in_",cluster_number[2],"_GOp.txt"), sep="\t")
+        #GOchart loop
+        if(j==1){
+            cluster.list<-list(temp.vector)
+          }else{
+            cluster.list<-list.append(cluster.list,temp.vector)
+          }
+        }
+  GO_sum.tmp<-gosummaries(cluster.list, organism = "scerevisiae",max_p_value = 0.05)
+  plot(GO_sum.tmp, fontsize = 4, filename = paste0(sub_dir,"/cluster_",j,"_in_",cluster_number[2],"_GO_chart.png"),panel_height=1, components=1:length(GO_sum.tmp))  
+}
+}
+```
+
+```{r}
+dir_name<-paste("GO_1025")
+dir.create(dir_name)
+Gprofiler_enrichment(WardD2.cluster_table)
+```
+
+Prepare sequence files
+```{r}
+#Obtain sequence data
+ensembl = useMart("ensembl",dataset="scerevisiae_gene_ensembl")
+chrom_list=c("I","II","III","IV","IX","V","VI","VII","VIII","X","XI","XII","XIII","XIV","XV","XVI")
+
+#getBM() will fetch the data from BioMart, with this setup, we can get sequences of interest
+
+#upstream sequences, 500 bp
+
+up_500<-getBM(c("coding_gene_flank", "ensembl_gene_id"), filters = c("biotype", "upstream_flank","chromosome_name"), values = list("protein_coding", 500, chrom_list), mart = ensembl, checkFilters = FALSE)
+
+#downstream sequences, 500 bp
+down_500<-getBM(c("coding_gene_flank", "ensembl_gene_id"), filters = c("biotype", "downstream_flank","chromosome_name"), values = list("protein_coding", 500, chrom_list), mart = ensembl, checkFilters = FALSE)
+```
+
+```{r}
+#Separate sequence file into cluster
+#This part is for creating folder to store FASTA files
+separate_into_cluster<-function(sequence_table, cluster_table, cluster_number,dir_name){
+if(!file.exists(dir_name)){
+      dir.create(dir_name)
+}
+sub_dir<-paste0("./",dir_name,"/cluster_",cluster_number)
+if(!file.exists(sub_dir)){
+      dir.create(sub_dir)
+}
+#loop from cluster 1 to maximum number
+for(j in 1:cluster_number){
+  
+#create gene list by using cluster number
+        gene_in_cluster<-cluster_table%>% dplyr::select(paste0("cluster_",cluster_number))%>% rownames_to_column(var="gene")%>%filter(UQ(as.name(paste0("cluster_",cluster_number)))==j)
+        
+#merge with genome-level sequence table      
+      cluster_seq<-left_join(gene_in_cluster,sequence_table,by=c("gene"="ensembl_gene_id"))%>% na.omit()
+      
+#print out FASTA file      
+      #extract sequence to DNAStringset
+      output_tab<-cluster_seq%>%pull(coding_gene_flank)%>%DNAStringSet()
+      #extract gene name to DNAStringset
+      names(output_tab)<-cluster_seq$gene
+      #prepare filename
+      region_vector<-unlist(strsplit(deparse(substitute(sequence_table)),"_"))[1]
+      tab_name<-paste0(sub_dir,"/cluster_",j,"_in_",cluster_number,"_",region_vector,".fasta")
+      print("check1")
+      #print file
+      writeXStringSet(output_tab, tab_name, format="fasta")
+      
+    }
+    print(paste0("cluster_",cluster_number," done."))
+}
+```
+
+```{r}
+separate_into_cluster(up_500,WardD2.cluster_table,19,"cluster_1025_Ward")
+separate_into_cluster(down_500,WardD2.cluster_table,19,"cluster_1025_Ward")
+```
+
+Motif operations
+!!!Run bash script outside of R studio!!!
+
+```{r}
+#Create backgroud fasta
+#define function
+create_background_from_sequence_table<-function(sequence_file){
+  #print out FASTA file      
+      output_tab<-sequence_file%>%pull(coding_gene_flank)%>%DNAStringSet()
+      names(output_tab)<-sequence_file$ensembl_gene_id
+      region_vector<-unlist(strsplit(deparse(substitute(sequence_file)),"_"))[1]
+      tab_name<-paste0("background_",region_vector,".fasta")
+      writeXStringSet(output_tab, tab_name, format="fasta")
+```
+
+```{r}
+create_background_from_sequence_table(down_500)
+create_background_from_sequence_table(up_500)
+```
+background model calculation
+```{bash eval=FALSE}
+fasta-get-markov -m 1 < background_down.fasta > bg_down-model-1
+fasta-get-markov -m 1 < background_up.fasta > bg_up-model-1
+```
+Background_motif script
+```{bash eval=FALSE}
+#!/bin/sh
+home_dir=$(pwd)
+echo begin_down
+date
+mkdir background_down
+#-dna: specify data in fasta file
+#-revcomp: consider reverse complement
+#-mod anr: Any Number of Repetitions (a motif might repeats multiple times in one sequence)
+#-evt: e-value treashold
+#-p 20: paralellise the task to speed things up
+#bfile:  background file
+#maxw, minw: maximum and minimum width
+/usr/local/meme5/bin/meme ./background_down.fasta -dna -revcomp -mod anr -oc $home_dir/background_down -nmotifs 50 -evt 0.005 -brief 1000000 -p 20 -bfile $home_dir/bg_down-model-1 -maxw 10 -minw 6
+echo begin_up
+date
+mkdir background_up
+/usr/local/meme5/bin/meme ./background_up.fasta -dna -revcomp -mod anr -oc $home_dir/background_up -nmotifs 50 -evt 0.005 -brief 1000000 -p 20 -bfile $home_dir/bg_down-model-1 -maxw 10 -minw 6
+echo finish at:
+date
+```
+Motif discovery script
+```{bash,eval=FALSE}
+#!/bin/sh
+echo begin_down
+echo check dir 
+pwd
+date
+#choose directory
+#set a mainfolder (the folder which contains folder of clustered sequence files; the results from previous step)
+folder_of_interest="cluster_1025_Ward"
+dir_list=$(ls -d ./$folder_of_interest/*)
+echo $dir_list
+#loop for a folder of each clustering (in case there are more than one cluster number used)
+for dir in $dir_list
+do 
+home_dir=$(pwd)
+cd "$home_dir/$dir"
+echo current directory:
+pwd
+#loop for each clustered sequence grou resulted from clustering
+for file in $home_dir/$dir/*down.fasta; 
+do 
+echo ${file}
+echo start processing $(basename "$file") at:
+date
+#-dna: specify data in fasta file
+#-revcomp: consider reverse complement
+#-mod anr: Any Number of Repetitions (a motif might repeats multiple times in one sequence)
+#-evt: e-value treashold
+#-p 20: paralellise the task to speed things up
+#bfile:  background file
+#maxw, minw: maximum and minimum width
+/usr/local/meme5/bin/meme ${file} -dna -revcomp -mod anr -oc $(basename "$file" .fasta) -nmotifs 30 -evt 0.005 -brief 1000000 -p 20 -bfile $home_dir/bg_down-model-1 -maxw 10 -minw 6
+echo finish at:
+date
+done 
+#back to working directory
+cd "$home_dir"
+echo back to working directory
+pwd
+done
+
+echo down_meme finished at:
+date
+
+echo check dir
+pwd
+#repeat above loop to upstream sequences
+echo begin_up
+folder_of_interest="cluster_1025_Ward"
+dir_list=$(ls -d ./$folder_of_interest/*)
+echo $dir_list
+for dir in $dir_list
+do
+home_dir=$(pwd)
+cd "$home_dir/$dir"
+echo current directory:
+pwd
+for file in $home_dir/$dir/*up.fasta;
+do
+echo ${file}
+echo start processing $(basename "$file") at:
+date
+/usr/local/meme5/bin/meme ${file} -dna -revcomp -mod anr -oc $(basename "$file" .fasta) -nmotifs 30 -evt 0.005 -brief 1000000 -p 20 -bfile $home_dir/bg_up-model-1 -maxw 10 -minw 6
+echo finish at:
+date
+done
+cd "$home_dir"
+echo back to working directory
+done
+echo up_meme finished at:
+pwd
+```
+Motif search script
+```{bash,eval=FALSE}
+#!/bin/sh
+echo begin
+date
+#choose directory
+folder_of_interest="cluster_1025_Ward"
+echo check working dir:
+dir_list=$(ls -d ./$folder_of_interest/*)
+echo $dir_list
+#loop for a folder of each clustering
+for dir in $dir_list
+do
+home_dir=$(pwd)
+cd "$home_dir/$dir"
+echo current directory:
+pwd
+
+#loop for each cluster resulted from clustering
+for query in $(find $home_dir/$dir -name '*meme.html' |sort);
+do
+echo $query
+target01=$(find $home_dir/$dir -name '*up.fasta'| sort)
+for target in $target01
+do
+echo target file $target
+#mast_out is created to store each mast result for each cluster in their respective subfolder.
+#because there is no control over output filename (it always uses mast.html/.xml/.txt), we have to create subfolder system for mast loop in order to protect the result files from getting overwritten.
+#rm -r $(dirname $query)/mast_out/
+mkdir $(dirname $query)/mast_out/
+/usr/local/meme5/bin/mast ${query} ${target} -oc $(dirname $query)/mast_out/$(basename $target .fasta) -bfile $home_dir/bg_up-model-1
+done
+target02=$(find $home_dir/$dir -name '*down.fasta'| sort)
+for target in $target02
+do
+echo target file $target
+#rm -r $(dirname $query)/mast_out/
+mkdir $(dirname $query)/mast_out/
+/usr/local/meme5/bin/mast ${query} ${target} -oc $(dirname $query)/mast_out/$(basename $target .fasta) -bfile $home_dir/bg_down-model-1
+done
+done
+cd "$home_dir"
+done
+
+```
+Combine MEME result files
+```{bash,eval=FALSE}
+#!/bin/sh
+echo begin
+date
+#choose directory
+folder_of_interest="cluster_1025_Ward"
+echo check working dir:
+dir_list=$(ls -d ./$folder_of_interest/*)
+echo $dir_list
+#loop for a folder of each clustering
+for dir in $dir_list
+do
+home_dir=$(pwd)
+cd "$home_dir/$dir"
+echo current directory:
+pwd
+echo merge upstream_motifs
+meme_up=$(find $home_dir/$dir -path '*up/meme.html'| sort)
+echo $meme_list
+/usr/local/meme5/libexec/meme-5.0.0//meme2meme $meme_up -numbers -bg $home_dir/bg_up-model-1 > meme_up.txt
+echo merge downstream_motifs
+meme_down=$(find $home_dir/$dir -path '*down/meme.html'| sort)
+echo $meme_list
+/usr/local/meme5/libexec/meme-5.0.0//meme2meme $meme_down -numbers -bg $home_dir/bg_down-model-1 > meme_down.txt
+done
+
+```
+Motif comparison script
+```{bash,eval=FALSE}
+#!/bin/sh
+echo begin
+date
+#choose directoy
+folder_of_interest="cluster_1025_Ward"
+echo check working dir:
+dir_list=$(ls -d ./$folder_of_interest/*)
+echo $dir_list
+#loop for a folder of each clustering
+for dir in $dir_list
+do
+home_dir=$(pwd)
+cd "$home_dir/$dir"
+echo current directory:
+pwd
+mkdir $home_dir/$dir/tomtom_out
+echo self_comparison
+
+
+/usr/local/meme5/bin/tomtom meme_down.txt meme_down.txt -oc $home_dir/$dir/tomtom_out/down_down/  -thresh 0.05 #-evalue  # -bfile $home_dir/bg_down-model-1
+/usr/local/meme5/bin/tomtom meme_up.txt meme_up.txt -oc $home_dir/$dir/tomtom_out/up_up/  -thresh 0.05 #-evalue # -bfile $home_dir/bg_up-model-1
+echo pair_comprison
+/usr/local/meme5/bin/tomtom meme_up.txt meme_down.txt -oc $home_dir/$dir/tomtom_out/up_down/  -thresh 0.05 #-evalue # -bfile $home_dir/bg_up-model-1
+/usr/local/meme5/bin/tomtom meme_down.txt meme_up.txt -oc $home_dir/$dir/tomtom_out/down_up/ -thresh 0.05 #-evalue # -bfile $home_dir/bg_down-model-1 
+
+echo jaspar-search
+/usr/local/meme5/bin/tomtom meme_down.txt $home_dir/JASPAR2018_CORE_fungi_non-redundant_pfms_meme.txt -oc $home_dir/$dir/tomtom_out/down_JASPAR/ -thresh 0.05 #-evalue #-bfile $home_dir/bg_down-model-1
+/usr/local/meme5/bin/tomtom meme_up.txt $home_dir/JASPAR2018_CORE_fungi_non-redundant_pfms_meme.txt -oc $home_dir/$dir/tomtom_out/up_JASPAR/ -thresh 0.05 #-evalue #-bfile $home_dir/bg_up-model-1
+echo Stability-search
+/usr/local/meme5/bin/tomtom meme_down.txt $home_dir/stab_motif -oc $home_dir/$dir/tomtom_out/down_stability -thresh 0.05 #-evalue #-bfile $home_dir/bg_down-model-1
+/usr/local/meme5/bin/tomtom meme_up.txt $home_dir/stab_motif -oc $home_dir/$dir/tomtom_out/up_stability/ -thresh 0.05 #-evalue #-bfile $home_dir/bg_up-model-1
+echo Gasch-search
+/usr/local/meme5/bin/tomtom meme_down.txt $home_dir/GASCH_motif -oc $home_dir/$dir/tomtom_out/down_Gasch/ -thresh 0.05 #-evalue #-bfile $home_dir/bg_down-model-1
+/usr/local/meme5/bin/tomtom meme_up.txt $home_dir/GASCH_motif -oc $home_dir/$dir/tomtom_out/up_Gasch/ -thresh 0.05 #-evalue #-bfile $home_dir/bg_up-model-1
+echo sublocalize-search
+/usr/local/meme5/bin/tomtom meme_down.txt $home_dir/subloc_motif -oc $home_dir/$dir/tomtom_out/down_sublocalization/ -thresh 0.05 #-evalue #-bfile $home_dir/bg_down-model-1
+/usr/local/meme5/bin/tomtom meme_up.txt $home_dir/subloc_motif -oc $home_dir/$dir/tomtom_out/up_sublocalization/ -thresh 0.05 #-evalue #-bfile $home_dir/bg_up-model-1
+echo finished at:
+date
+
+done
+```
+
+Gather results into motif and gene exprssion table
+
+
+```{r}
+#cluster table
+#generate new table with gene name with cluster number used
+cluster_number<-as.tibble(WardD2.cluster_table[,"cluster_19"])
+cluster_number$rowname<-rownames(WardD2.cluster_table)
+#generate exression table
+expression_table<-as.tibble(rownames_to_column(as.data.frame(init_table_142.mat)))
+#merge exprssion table with cluster number table
+expression_table_with_cluster_number<-left_join(cluster_number,expression_table, by="rowname")
+#summarise expression table by cluster
+summarized_expression_table<-expression_table_with_cluster_number%>%dplyr::select(-rowname) %>% group_by(value) %>% summarise_all(funs(mean(., na.rm = TRUE)))%>%dplyr::rename(cluster = value) 
+```
+export table
+```{r}
+write.table(expression_table_with_cluster_number, file=paste0("./expression_table_with_cluster_number_",unlist(str_split(getwd(),pattern="/"))[4],".txt"), sep="\t")
+write.table(summarized_expression_table, file=paste0("./summarized_expression_table_",unlist(str_split(getwd(),pattern="/"))[4],".txt"), sep="\t")
+```
+
+Create motifs table
+#Define functions
+```{r}
+#define functions to reduce loop complexity
+setup_iteration<-function(folder_of_interest, cluster_of_interest){
+  #folder_of_interest: string vector of target folder
+  #cluster_of_interest: a name of subfolder of target max_cluster
+  
+  
+  ################cluster number list section####################
+  #get cluster number list
+  clust_max_list<-list.dirs(path = paste0("./",folder_of_interest), full.names = FALSE, recursive = FALSE)
+  
+  
+  ################subfolder list section####################
+  #get subfolder list
+  clust_all_subfolder_list<-list.dirs(path = paste0("./",folder_of_interest), full.names = FALSE, recursive = TRUE)
+  #filter out "mast"
+  clust_all_subfolder_list<-grep("in",clust_all_subfolder_list,value = TRUE)
+  clust_all_subfolder_list<-grep("mast",clust_all_subfolder_list,value = TRUE,invert = TRUE)
+  #if there is more than one cluster results, one more filter might be needed
+  clust_all_subfolder_list<-grep(cluster_of_interest,clust_all_subfolder_list,value = TRUE)
+  
+  
+  ################.xml list section####################
+  #get .xml list
+all_xml_list<-list.files(path =  paste0("./",folder_of_interest), pattern = "meme.xml", all.files = TRUE, full.names = TRUE, recursive = TRUE, include.dirs = FALSE, no.. = TRUE)
+  #if there is more than one cluster number, one more filter might be needed
+  all_xml_list<-grep(cluster_of_interest,all_xml_list,value = TRUE)
+  return(list(clust_max_list,clust_all_subfolder_list,all_xml_list))
+}
+
+extract_cluster_profile<-function(j){
+  #prepare source object
+  source_folder<-gsub(j,pattern = "cluster_[0-9]/",replacement = "")
+  #source of motifs
+  motif_source=unlist(strsplit(source_folder,"/"))[1]
+  #target of motif occurence query
+  target_cluster_and_region<-unlist(strsplit(source_folder,"/"))[2]
+  #split target of motif occurence query into cluster and region
+  target_cluster<-paste(unlist(strsplit(target_cluster_and_region,"_"))[1:4],collapse = "_")
+  region<-paste(unlist(strsplit(target_cluster_and_region,"_"))[5])
+  return(list(source_folder,motif_source, target_cluster, region))
+}
+
+
+extract_sourcefilename<-function(xml_file){
+  read_xml(xml_file)%>%xml_child(search="training_set")%>%xml_attrs()%>%extract2(1)
+}
+
+#check motif existence. If there is no motif found from the cluster, return NA
+data_length_check<-function(xml_file){
+  data_length<-read_xml(xml_file)%>%xml_child(search="motifs")%>%xml_children()%>%length()
+  if(data_length==0){
+    return(NA)
+    next
+  }
+  
+}
+
+extract_motif_profile<-function(xml_file){
+  read_xml(xml_file)%>% xml_child(search="motifs")%>%xml_children()%>%map(xml_attrs)%>%transpose()%>%as_tibble%>%unnest()%>%dplyr::select(c(name,width,sites,e_value))
+}
+
+
+extract_regular_expression<-function(xml_file){
+  read_xml(xml_file)%>%xml_child(search="motifs")%>%xml_children()%>%xml_child(search="regular_expression")%>%xml_text(trim=TRUE)
+}
+
+combine_table<-function(motif_source,target_cluster,region,source_filename,motif_profile,regular_expression){
+  cbind.data.frame(source_directory=paste0("./",folder_of_interest), cluster_number=motif_source,cluster=target_cluster,region=region,target_file=source_filename,motif_profile,regular_expression)%>%as_tibble()%>%mutate_if(is.factor, as.character)
+}
+
+#define operating function
+get_motif_table<-function(j){
+  #wrap all function above
+  
+  cluster_proile_list<-extract_cluster_profile(j)
+  source_folder<-cluster_proile_list[[1]]
+  motif_source<-cluster_proile_list[[2]]
+  target_cluster<-cluster_proile_list[[3]]
+  region<-cluster_proile_list[[4]]
+  
+  #select xml file
+  xml_file<-grep(source_folder, all_xml_list,value=TRUE)  
+  
+  source_filename<-extract_sourcefilename(xml_file)
+  
+  motif_profile<-extract_motif_profile(xml_file)
+    
+  regular_expression<-extract_regular_expression(xml_file)
+  #the function output  
+  table_part.tmp<-combine_table(motif_source,target_cluster,region,source_filename,motif_profile,regular_expression)
+}
+
+#set failsafe, continue working with even with error, return NA in case of error
+get_motif_table_failsafe<-possibly(get_motif_table,NA_real_)
+```
+
+loop setup
+```{r}
+folder_of_interest<-"cluster_1025_Ward/"
+cluster_of_interest<-"cluster_19"
+
+iterate_setting_list<-setup_iteration(folder_of_interest = folder_of_interest, cluster_of_interest = cluster_of_interest)
+
+clust_max_list<-iterate_setting_list[[1]]
+clust_all_subfolder_list<-iterate_setting_list[[2]]
+all_xml_list<-iterate_setting_list[[3]]
+
+#generate a blank table
+motif_table<-NA
+
+#data gethering loop
+#loop for each max cluster number
+for(i in clust_max_list){
+  folder_name<-i
+  #filter subfolder name by  max cluster number
+  subfolder_name<-grep(paste0("^",i), clust_all_subfolder_list,value=TRUE)
+  #get table
+  motif_table<-map(subfolder_name,get_motif_table_failsafe)%>%discard(is.na(.))%>%purrr::reduce(bind_rows)
+  #write dirty (raw, uncleaned) table
+  write.table(motif_table, file="./motif_table_dirty.txt", sep="\t", row.names = FALSE, quote=F)
+}
+
+```
+
+Generate more tables for data analyses
+ 
+```{r}
+#Simplify table
+simplified_motif_table<-motif_table%>%dplyr::select(c(cluster,region,name, e_value))%>%separate(cluster, into=c("cluster","discarded"),sep="_in_")%>%dplyr::select(-discarded)%>%separate(cluster, into=c("discarded","cluster"),sep="_")%>%dplyr::select(-discarded)
+
+write.table(simplified_motif_table
+, file=paste0("./simplified_motif_table.txt"), sep="\t", row.names = FALSE, quote=F)
+```
+
+```{r}
+#Create expression table
+raw_expression_table<-init_table_142.mat%>%data.frame()%>%rownames_to_column("gene_name")%>%as_tibble()
+genename_and_cluster<-WardD2.cluster_table%>%dplyr::select(cluster_19)%>%rownames_to_column("gene_name")%>%as_tibble()
+expression_table_with_cluster<-left_join(genename_and_cluster,raw_expression_table)
+#cluster level expression table
+cluster_mean_expression_table<-expression_table_with_cluster%>%select(-gene_name)%>%group_by(cluster_19)%>%summarise_all(funs(mean(., na.rm = TRUE)))
+#Merge simplified motif table with summarized expression table
+motif_and_expression_cluster_level<-left_join(simplified_motif_table,cluster_mean_expression_table,by=c("cluster"="cluster_19"))
+```
+
+```{r}
+write.table(motif_and_expression_cluster_level, file=paste0("motif_and_expression_cluster_level.txt"), sep="\t",row.names = FALSE, quote=F)
+```
+
+motif occurence data
+
+#Define functions to reduce code complexity
+```{r}
+extract_source_and_target<-function(i){
+  source_cluster<-i %>% str_split(pattern = "/") %>% reduce(c) %>% extract2(4)%>%str_split("_")%>%reduce(c)%>% extract2(2)
+  source_region<-i %>% str_split(pattern = "/") %>% reduce(c) %>% extract2(4)%>%str_split("_")%>%reduce(c)%>% extract2(5)
+  target_cluster<-i %>% str_split(pattern = "/") %>% reduce(c) %>% extract2(6)%>%str_split("_")%>%reduce(c)%>% extract2(2)
+  target_region<-i %>% str_split(pattern = "/") %>% reduce(c) %>% extract2(6)%>%str_split("_")%>%reduce(c)%>% extract2(5)
+
+  return(list(source_cluster,source_region,target_cluster,target_region))
+}
+
+
+extract_motif_id_and_idx<-function(i){
+  motif_id<-read_xml(i)%>% xml_child(search="motifs")%>%xml_children()%>%map(xml_attrs)%>%transpose()%>%as_tibble%>%unnest()%>%select(id)%>%rowid_to_column("idx")%>%transmute(idx=idx-1,id)
+}
+
+get_sequence_node<-function(i){
+  read_xml(i) %>% xml_child(search="sequences")
+}
+
+extract_idx_count<-function(sequence_node){
+  idx_list<-sequence_node%>%xml_children()%>%map(xml_children)%>%map(xml_children)%>%map(xml_attr, "idx")%>%map(discard, is.na)%>%map_if(is_empty,~ NA_character_)
+}
+
+extract_gene_list<-function(sequence_node){
+  gene_list<-sequence_node%>%xml_children()%>%map(xml_attr, "name")
+}
+
+get_motif_count_by_gene_table<-function(gene_list,idx_list){
+  map2(gene_list,idx_list,cbind.data.frame)%>%map(as_tibble)%>%map(mutate_if,is.factor, as.character)%>%reduce(bind_rows)%>%rename("gene"=1)%>%rename("idx"=2)%>%mutate(idx=as.numeric(idx))%>%mutate(idx_duplicate=idx)%>%group_by(gene,idx)%>%summarise(count=n())%>%as_tibble()
+}
+
+combine_motif_count_and_id<-function(motif_count_by_gene,motif_id){
+  motif_id_count_by_gene<-motif_count_by_gene%>%left_join(motif_id,by = "idx")%>%select(-idx)
+}
+
+collaspe_motif_count_table<-function(motif_id_count_by_gene){
+  motif_id_count_by_cluster<-motif_id_count_by_gene%>%group_by(id)%>%summarise(count=sum(count))%>%as_tibble()
+}
+
+complete_motif_count_cluster_level<-function(source_cluster,source_region,target_cluster,target_region,motif_id_count_by_cluster){
+  motif_id_count_by_cluster_complete<-cbind.data.frame(source_cluster,source_region,target_cluster,target_region,motif_id_count_by_cluster)%>%as_tibble()
+}
+
+#operational function
+get_cluster_level_motif_count_table<-function(i){
+  #wrap all functions above
+  
+  source_and_target_list<-extract_source_and_target(i)
+  
+  source_cluster<-source_and_target_list[[1]]
+  source_region<-source_and_target_list[[2]]
+  target_cluster<-source_and_target_list[[3]]
+  target_region<-source_and_target_list[[4]]
+  
+  motif_id<-extract_motif_id_and_idx(i)
+  
+  sequence_node<-get_sequence_node(i)
+  idx_list<-extract_idx_count(sequence_node)
+  gene_list<-extract_gene_list(sequence_node)
+  
+  motif_count_by_gene<-get_motif_count_by_gene_table(gene_list,idx_list)
+  
+  #combine tables
+  motif_id_count_by_gene<-combine_motif_count_and_id(motif_count_by_gene,motif_id)
+
+  motif_id_count_by_cluster<-collaspe_motif_count_table(motif_id_count_by_gene)
+  
+  motif_id_count_by_cluster_complete<-complete_motif_count_cluster_level(source_cluster,source_region,target_cluster,target_region,motif_id_count_by_cluster)
+  return(motif_id_count_by_cluster_complete)
+}
+
+#set failsafe, continue working with even with error, return NA in case of error
+get_cluster_level_motif_count_table_failsafe<-possibly(get_cluster_level_motif_count_table,NA_real_)
+```
+run functions
+```{r}
+#generate mast file list
+mast_list<-list.files(path = ".", pattern = "mast.xml", all.files = TRUE, full.names = TRUE, recursive = TRUE, include.dirs = FALSE, no.. = TRUE)
+#setting up parallel processing
+plan(multiprocess)
+cluster_level_occurence_table_list<-future_map(mast_list,get_cluster_level_motif_count_table_failsafe, .progress = TRUE)
+cluster_level_occurence_table<-cluster_level_occurence_table_list%>%reduce(rbind.data.frame)
+```
+
+```{r}
+write.table(cluster_level_occurence_table, file=paste0("./cluster_level_occurence_table.txt"), sep="\t", quote=F)
+```
+gene level motif count
+```{r}
+complete_motif_count_gene_level<-function(source_cluster,source_region,target_region,motif_id_count_by_gene){
+  complete_motif_count_gene_level<-cbind.data.frame(source_cluster,source_region,target_region,motif_id_count_by_gene)%>%as_tibble()
+}
+
+
+#operational function
+get_gene_level_motif_count_table<-function(i){
+  #wrap all functions above
+  source_and_target_list<-extract_source_and_target(i)
+  source_cluster<-source_and_target_list[[1]]
+  source_region<-source_and_target_list[[2]]
+  target_region<-source_and_target_list[[4]]
+  
+  motif_id<-extract_motif_id_and_idx(i)
+
+  sequence_node<-get_sequence_node(i)
+  idx_list<-extract_idx_count(sequence_node)
+  gene_list<-extract_gene_list(sequence_node)
+  
+  motif_count_by_gene<-get_motif_count_by_gene_table(gene_list,idx_list)
+  
+  motif_id_count_by_gene<-combine_motif_count_and_id(motif_count_by_gene,motif_id)
+  
+  #combine tables
+  motif_id_count_by_gene_complete<-complete_motif_count_gene_level(source_cluster,source_region,target_region,motif_id_count_by_gene)
+  return(motif_id_count_by_gene_complete)
+}
+
+#set failsafe, continue working with even with error, return NA in case of error
+#possible error source: blank node, cannot find motif in a sequence set
+get_gene_level_motif_count_table_failsafe<-possibly(get_gene_level_motif_count_table,NA_real_)
+```
+
+```{r}
+#setting up parallel processing
+plan(multiprocess)
+gene_level_occurence_table_list<-future_map(mast_list,get_gene_level_motif_count_table_failsafe)
+gene_level_occurence_table<-gene_level_occurence_table_list%>%reduce(rbind.data.frame)%>%as_tibble()
+```
+
+```{r}
+write.table(gene_level_occurence_table, file=paste0("./gene_level_occurence_table.txt"), sep="\t", quote=F)
+```
+
+Redundant motif problem
+
+Grouping outside manully
+
+import edited table
+```{r}
+motif_table_with_group<-read_tsv("./motif_table_dirty_group_added.txt")
+simplified_motif_group<-motif_table_with_group%>%select(cluster,region,name,group)%>%separate(cluster, into=c("discard","cluster"),sep="_")%>%select(-discard)
+#combine group table with gene level table
+gene_level_occurence_table_with_group<-gene_level_occurence_table%>%left_join(simplified_motif_group, by=c("source_cluster"="cluster", "source_region"="region","id"="name"))
+#Summarise the table by motif group
+gene_level_occurence_table_with_group_summarised<-gene_level_occurence_table_with_group%>%group_by(target_region,gene,group)%>%summarise(count=max(count))%>%as_tibble()
+#Join the summarised table with expression table
+gene_level_occurence_table_with_group_summarised_and_gene_expression<-gene_level_occurence_table_with_group_summarised%>%left_join(expression_table_with_cluster,by=c("gene"="gene_name"))
+#Custer level nonredundant table
+cluster_level_occurence_table_with_group<-cluster_level_occurence_table%>%left_join(simplified_motif_group, by=c("source_cluster"="cluster", "source_region"="region","id"="name"))
+#Summarise the table by motif group
+cluster_level_occurence_table_with_group_summarised<-cluster_level_occurence_table_with_group%>%group_by(target_region,target_cluster,group)%>%summarise(count=max(count))%>%as_tibble()
+#Join the summarised table with expression table
+
+cluster_level_occurence_table_with_group_summarised_and_gene_expression<-cluster_level_occurence_table_with_group_summarised%>%left_join(cluster_mean_expression_table,by=c("target_cluster"="cluster_19"))
+```
+```
+
+```{r}
+write.table(gene_level_occurence_table_with_group, file=paste0("./gene_level_occurence_table_with_group.txt"), sep="\t", quote=F)
+write.table(gene_level_occurence_table_with_group_summarised, file=paste0("./gene_level_occurence_table_with_group_summarised.txt"), sep="\t", quote=F)
+write.table(gene_level_occurence_table_with_group_summarised_and_gene_expression, file=paste0("./gene_level_occurence_table_with_group_summarised_and_gene_expression.txt"), sep="\t", quote=F)
+write.table(cluster_level_occurence_table_with_group, file=paste0("./cluster_level_occurence_table_with_group.txt"), sep="\t", quote=F)
+write.table(cluster_level_occurence_table_with_group_summarised, file=paste0("./cluster_level_occurence_table_with_group_summarised.txt"), sep="\t", quote=F)
+write.table(cluster_level_occurence_table_with_group_summarised_and_gene_expression, file=paste0("./cluster_level_occurence_table_with_group_summarised_and_gene_expression.txt"), sep="\t", quote=F)
+```
+```

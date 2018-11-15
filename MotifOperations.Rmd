@@ -59,6 +59,10 @@ First, we will start with building background base frequency from whole genome s
 
 * clustered sequence cluster: cluster_1025_Ward in materials_for_motif_operation.tar.gz (extract to the home directory)
 
+* expression table: init_table_142.mat
+
+* cluster table: WardD2.cluster_table
+
 ##Build the background markov model
 
 This function will convert 500bp sequence set downloaded from ensmbl database to FASTA file for background frequncy calculation. (Actually it can also be used to convert any gene-sequence fetched from ensmbl to fasta)
@@ -70,7 +74,7 @@ library(Biostrings)
 ```
 
 
-
+Create backgroud fasta
 define function
 ```{r}
 create_background_from_sequence_table<-function(sequence_file){
@@ -95,7 +99,6 @@ This step was done by using MEME suite command fasta-get-markov to create backgr
 ```{bash eval=FALSE}
 fasta-get-markov -m 1 < background_down.fasta > bg_down-model-1
 fasta-get-markov -m 1 < background_up.fasta > bg_up-model-1
-
 ```
 
 ##Background_motif script

@@ -293,7 +293,6 @@ When the project is in progress, we did not know how many cluster we should use 
 
 Define function
 ```{r}
-
 assign_cluster<-function(hclust_object, minimum_cluster=1, maximum_cluster){
   for (i in minimum_cluster:maximum_cluster){
     
@@ -648,6 +647,11 @@ for(j in 1:cluster_number){
 ```{r}
 separate_into_cluster(up_500,WardD2.cluster_table,19,"cluster_1025_Ward")
 separate_into_cluster(down_500,WardD2.cluster_table,19,"cluster_1025_Ward")
+```
+```{r}
+#export Robjects for MotifOperation.Rmd
+save(init_table_142.mat,WardD2.cluster_table, file="materials_for_motif_operation.Rdata")
+
 ```
 
 
