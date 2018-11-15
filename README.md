@@ -22,12 +22,13 @@ Part of **MotifOperations.Rmd**. Run in shell terminal outside of Rstudio.
 ## **Materials**
 ### **Sequence files** 
 * **materials_for_motif_operation.tar.gz** contains clustered sequence files for starting MotifOperations.Rmd.
+### **Tables**
+* **materials_for_motif_operation.Rdata** contains required tables for starting MotifOperations.Rmd.
+
 ### backups for previous results reproduction 
 (See: MotifOperations.Rmd at MOTIF TABLES COMPARISON BETWEEN PREVIOUS RUN AND THE CURRENT RUN section in MotifOperations.Rmd)
 * background_down_old.fasta: 
 * background_up_old.fasta: 
-### **Tables**
-* **materials_for_motif_operation.Rdata** contains required tables for starting MotifOperations.Rmd.
 
 ### **Motif database** for motif comparison
 * GASCH_motif: motifs found from original paper (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC15070/)
