@@ -57,7 +57,7 @@ First, we will start with building background base frequency from whole genome s
 
 * background file: background_down.fasta/background_up.fasta 
 
-* clustered sequence cluster: cluster_1025_Ward (extract to the home directory)
+* clustered sequence cluster: cluster_1025_Ward in materials_for_motif_operation.tar.gz (extract to the home directory)
 
 ##Build the background markov model
 
