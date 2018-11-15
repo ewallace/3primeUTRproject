@@ -3,7 +3,7 @@ R/shell scripts related to 3' UTR project
 
 #  Project body
 
-##**R notebook**
+## **R notebook**
 Main source code. They are split into two parts.
 * **tablePreparation.Rmd** imports original tables, rearrange, modifies, and processes the table, then clusters gene expression data, perfroms GO-enrichment analyses, retrieves and separates 500bp upstream and downstream sequences into clusters.
 
@@ -11,7 +11,7 @@ Main source code. They are split into two parts.
 
 * 3primeRepo.Rproj an Rstudio project file.
 
-##**BASH scripts**
+## **BASH scripts**
 Part of **MotifOperations.Rmd**. Run in shell terminal outside of Rstudio.
 * **meme.sh** A motif discovery tool. Finds motifs from input sequences.
 * **background_meme.sh** performs MEME discovery on background sequences.
@@ -19,10 +19,10 @@ Part of **MotifOperations.Rmd**. Run in shell terminal outside of Rstudio.
 * **meme2meme.sh** A script for combining multiple meme result files into one file.
 * **tomtom.sh** A motif comparison tool. Compares input motifs to input databases.
 
-##**Materials**
+## **Materials**
 **Sequence files** 
 * **materials_for_motif_operation.tar.gz** contains clustered sequence files for starting MotifOperations.Rmd.
-###backups for previous results reproduction (See: MotifOperations.Rmd at MOTIF TABLES COMPARISON BETWEEN PREVIOUS RUN AND THE CURRENT RUN section in MotifOperations.Rmd)
+### backups for previous results reproduction (See: MotifOperations.Rmd at MOTIF TABLES COMPARISON BETWEEN PREVIOUS RUN AND THE CURRENT RUN section in MotifOperations.Rmd)
 * background_down_old.fasta: 
 * background_up_old.fasta: 
 **Tables**
