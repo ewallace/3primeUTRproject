@@ -24,6 +24,7 @@ Part of **MotifOperations.Rmd**. Run in shell terminal outside of Rstudio.
 * **materials_for_motif_operation.tar.gz** contains clustered sequence files for starting MotifOperations.Rmd.
 ### **Tables**
 * **materials_for_motif_operation.Rdata** contains required tables for starting MotifOperations.Rmd.
+* **motif_table_dirty_group_added.txt** motifs are manually grouped using spreadsheet and tomtom.html  
 
 ### backups for previous results reproduction 
 (See: MotifOperations.Rmd at MOTIF TABLES COMPARISON BETWEEN PREVIOUS RUN AND THE CURRENT RUN section in MotifOperations.Rmd)
